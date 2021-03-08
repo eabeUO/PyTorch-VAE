@@ -9,7 +9,7 @@ from torchvision import transforms
 import torchvision.utils as vutils
 from torchvision.datasets import CelebA
 from torch.utils.data import DataLoader
-
+from datasets import WCDataset
 
 class VAEXperiment(pl.LightningModule):
 
@@ -31,10 +31,10 @@ class VAEXperiment(pl.LightningModule):
         return self.model(input, **kwargs)
 
     def training_step(self, batch, batch_idx, optimizer_idx = 0):
-        real_img, labels = batch
+        real_img = batch
         self.curr_device = real_img.device
 
-        results = self.forward(real_img, labels = labels)
+        results = self.forward(real_img)
         train_loss = self.model.loss_function(*results,
                                               M_N = self.params['batch_size']/ self.num_train_imgs,
                                               optimizer_idx=optimizer_idx,
@@ -45,10 +45,10 @@ class VAEXperiment(pl.LightningModule):
         return train_loss
 
     def validation_step(self, batch, batch_idx, optimizer_idx = 0):
-        real_img, labels = batch
+        real_img = batch
         self.curr_device = real_img.device
 
-        results = self.forward(real_img, labels = labels)
+        results = self.forward(real_img)
         val_loss = self.model.loss_function(*results,
                                             M_N = self.params['batch_size']/ self.num_val_imgs,
                                             optimizer_idx = optimizer_idx,
@@ -64,10 +64,10 @@ class VAEXperiment(pl.LightningModule):
 
     def sample_images(self):
         # Get sample reconstruction image
-        test_input, test_label = next(iter(self.sample_dataloader))
+        test_input = next(iter(self.sample_dataloader))
         test_input = test_input.to(self.curr_device)
-        test_label = test_label.to(self.curr_device)
-        recons = self.model.generate(test_input, labels = test_label)
+        # test_label = test_label.to(self.curr_device)
+        recons = self.model.generate(test_input)
         vutils.save_image(recons.data,
                           f"{self.logger.save_dir}{self.logger.name}/version_{self.logger.version}/"
                           f"recons_{self.logger.name}_{self.current_epoch}.png",
@@ -81,9 +81,8 @@ class VAEXperiment(pl.LightningModule):
         #                   nrow=12)
 
         try:
-            samples = self.model.sample(144,
-                                        self.curr_device,
-                                        labels = test_label)
+            samples = self.model.sample(self.params['batch_size'],
+                                        self.curr_device)
             vutils.save_image(samples.cpu().data,
                               f"{self.logger.save_dir}{self.logger.name}/version_{self.logger.version}/"
                               f"{self.logger.name}_{self.current_epoch}.png",
@@ -141,6 +140,10 @@ class VAEXperiment(pl.LightningModule):
                              split = "train",
                              transform=transform,
                              download=False)
+        elif self.params['dataset'] == 'WorldCam':
+            dataset = WCDataset(root_dir = self.params['data_path'],
+                                csv_file = self.params['csv_path_train'],
+                                transform=transform)
         else:
             raise ValueError('Undefined dataset type')
 
@@ -148,7 +151,8 @@ class VAEXperiment(pl.LightningModule):
         return DataLoader(dataset,
                           batch_size= self.params['batch_size'],
                           shuffle = True,
-                          drop_last=True)
+                          drop_last=True,
+                          num_workers=8)
 
     @data_loader
     def val_dataloader(self):
@@ -162,6 +166,15 @@ class VAEXperiment(pl.LightningModule):
                                                  batch_size= 144,
                                                  shuffle = True,
                                                  drop_last=True)
+            self.num_val_imgs = len(self.sample_dataloader)
+        elif self.params['dataset'] == 'WorldCam':
+            self.sample_dataloader = DataLoader(WCDataset(root_dir = self.params['data_path'],
+                                                          csv_file = self.params['csv_path_val'],
+                                                          transform=transform),
+                                                batch_size=self.params['batch_size'],
+                                                shuffle = True,
+                                                drop_last=True,
+                                                num_workers=8)
             self.num_val_imgs = len(self.sample_dataloader)
         else:
             raise ValueError('Undefined dataset type')
@@ -179,6 +192,13 @@ class VAEXperiment(pl.LightningModule):
                                             transforms.Resize(self.params['img_size']),
                                             transforms.ToTensor(),
                                             SetRange])
+        elif self.params['dataset'] == 'WorldCam':
+            transform = transforms.Compose([#transforms.Resize(size),
+                               transforms.RandomResizedCrop((self.params['imgH_size'],self.params['imgW_size'])),
+                               transforms.RandomHorizontalFlip(),
+                               transforms.RandomVerticalFlip(),
+                               transforms.ColorJitter(),
+                               transforms.ToTensor()])
         else:
             raise ValueError('Undefined dataset type')
         return transform

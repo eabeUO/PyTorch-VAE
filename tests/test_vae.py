@@ -1,8 +1,10 @@
 import torch
 import unittest
+import sys
+from os.path import abspath, dirname, join, expanduser
+sys.path.insert(0, join(expanduser('~/Research/Github/'),'PyTorch-VAE'))
 from models import VanillaVAE
 from torchsummary import summary
-
 
 class TestVAE(unittest.TestCase):
 
