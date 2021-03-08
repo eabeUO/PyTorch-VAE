@@ -56,11 +56,11 @@ class VAEXperiment(pl.LightningModule):
 
         return val_loss
 
-    def validation_end(self, outputs):
+    def validation_epoch_end(self, outputs):
         avg_loss = torch.stack([x['loss'] for x in outputs]).mean()
         tensorboard_logs = {'avg_val_loss': avg_loss}
         self.sample_images()
-        return {'val_loss': avg_loss, 'log': tensorboard_logs}
+        self.logger.experiment.log({'val_loss': avg_loss, 'log': tensorboard_logs})
 
     def sample_images(self):
         # Get sample reconstruction image
@@ -81,7 +81,7 @@ class VAEXperiment(pl.LightningModule):
         #                   nrow=12)
 
         try:
-            samples = self.model.sample(self.params['batch_size'],
+            samples = self.model.sample(144,
                                         self.curr_device)
             vutils.save_image(samples.cpu().data,
                               f"{self.logger.save_dir}{self.logger.name}/version_{self.logger.version}/"
@@ -152,7 +152,7 @@ class VAEXperiment(pl.LightningModule):
                           batch_size= self.params['batch_size'],
                           shuffle = True,
                           drop_last=True,
-                          num_workers=8)
+                          num_workers=16)
 
     @data_loader
     def val_dataloader(self):
@@ -172,9 +172,9 @@ class VAEXperiment(pl.LightningModule):
                                                           csv_file = self.params['csv_path_val'],
                                                           transform=transform),
                                                 batch_size=self.params['batch_size'],
-                                                shuffle = True,
+                                                shuffle = False,
                                                 drop_last=True,
-                                                num_workers=8)
+                                                num_workers=16)
             self.num_val_imgs = len(self.sample_dataloader)
         else:
             raise ValueError('Undefined dataset type')
@@ -193,11 +193,12 @@ class VAEXperiment(pl.LightningModule):
                                             transforms.ToTensor(),
                                             SetRange])
         elif self.params['dataset'] == 'WorldCam':
-            transform = transforms.Compose([#transforms.Resize(size),
-                               transforms.RandomResizedCrop((self.params['imgH_size'],self.params['imgW_size'])),
+            transform = transforms.Compose([transforms.Resize((self.params['imgH_size'],self.params['imgW_size'])),
+                                transforms.Grayscale(num_output_channels=1),
+                            #    transforms.RandomResizedCrop((self.params['imgH_size'],self.params['imgW_size'])),
                                transforms.RandomHorizontalFlip(),
                                transforms.RandomVerticalFlip(),
-                               transforms.ColorJitter(),
+                            #    transforms.ColorJitter(),
                                transforms.ToTensor()])
         else:
             raise ValueError('Undefined dataset type')

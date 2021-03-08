@@ -1,26 +1,25 @@
 model_params:
   name: 'VanillaVAE'
-  in_channels: 3
-  latent_dim: 128
+  in_channels: 1
+  latent_dim: 16
 
 exp_params:
   dataset: WorldCam
-  data_path: "/home/eabe/Research/FMEphys/"
-  csv_path_train: "/home/eabe/Research/Github/PyTorch-VAE/WC_Train_Data.csv"
-  csv_path_val: "/home/eabe/Research/Github/PyTorch-VAE/WC_Val_Data.csv"
+  data_path: "/home/seuss/Research/FMEphys/"
+  csv_path_train: "/home/seuss/Research/Github/PyTorch-VAE/WC_Train_Data.csv"
+  csv_path_val: "/home/seuss/Research/Github/PyTorch-VAE/WC_Val_Data.csv"
   imgH_size: 128
   imgW_size: 128
-  batch_size: 512 # Better to have a square number
+  batch_size: 1024 # Better to have a square number
   LR: 0.005
   weight_decay: 0.0
   scheduler_gamma: 0.95
 
 trainer_params:
   gpus: 1
-  max_nb_epochs: 50
-  max_epochs: 30
+  max_epochs: 200
 
 logging_params:
-  save_dir: "logs/"
+  save_dir: "/home/seuss/Research/FMEphys/logs/"
   name: "VanillaVAE"
   manual_seed: 1265
