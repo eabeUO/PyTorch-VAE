@@ -19,7 +19,8 @@ class VanillaVAE(BaseVAE):
 
         modules = []
         if hidden_dims is None:
-            hidden_dims = [32, 64, 128, 256, 512] 
+            hidden_dims = [32, 64, 128, 256, 512, 1024] 
+            self.hidden_dims = hidden_dims.copy()
 
         # Build Encoder
         for h_dim in hidden_dims:
@@ -70,7 +71,7 @@ class VanillaVAE(BaseVAE):
                                                output_padding=1),
                             nn.BatchNorm2d(hidden_dims[-1]),
                             nn.LeakyReLU(),
-                            nn.Conv2d(hidden_dims[-1], out_channels= 3,
+                            nn.Conv2d(hidden_dims[-1], out_channels= 1,
                                       kernel_size= 3, padding= 1),
                             nn.Tanh())
 
@@ -99,7 +100,7 @@ class VanillaVAE(BaseVAE):
         :return: (Tensor) [B x C x H x W]
         """
         result = self.decoder_input(z)
-        result = result.view(-1, 512, 4, 4)
+        result = result.view(-1, self.hidden_dims[-1], 4, 4)
         result = self.decoder(result)
         result = self.final_layer(result)
         return result

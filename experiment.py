@@ -152,7 +152,7 @@ class VAEXperiment(pl.LightningModule):
                           batch_size= self.params['batch_size'],
                           shuffle = True,
                           drop_last=True,
-                          num_workers=16)
+                          num_workers=32)
 
     @data_loader
     def val_dataloader(self):
@@ -174,7 +174,7 @@ class VAEXperiment(pl.LightningModule):
                                                 batch_size=self.params['batch_size'],
                                                 shuffle = False,
                                                 drop_last=True,
-                                                num_workers=16)
+                                                num_workers=32)
             self.num_val_imgs = len(self.sample_dataloader)
         else:
             raise ValueError('Undefined dataset type')
@@ -193,13 +193,15 @@ class VAEXperiment(pl.LightningModule):
                                             transforms.ToTensor(),
                                             SetRange])
         elif self.params['dataset'] == 'WorldCam':
-            transform = transforms.Compose([transforms.Resize((self.params['imgH_size'],self.params['imgW_size'])),
+            transform = transforms.Compose([
+                                transforms.RandomCrop((self.params['imgH_size'],self.params['imgW_size'])),
+                                # transforms.Resize((self.params['imgH_size'],self.params['imgW_size'])),
                                 transforms.Grayscale(num_output_channels=1),
                             #    transforms.RandomResizedCrop((self.params['imgH_size'],self.params['imgW_size'])),
-                               transforms.RandomHorizontalFlip(),
-                               transforms.RandomVerticalFlip(),
+                                transforms.RandomHorizontalFlip(),
+                            #    transforms.RandomVerticalFlip(),
                             #    transforms.ColorJitter(),
-                               transforms.ToTensor()])
+                                transforms.ToTensor()])
         else:
             raise ValueError('Undefined dataset type')
         return transform

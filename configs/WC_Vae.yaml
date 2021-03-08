@@ -8,16 +8,16 @@ exp_params:
   data_path: "/home/seuss/Research/FMEphys/"
   csv_path_train: "/home/seuss/Research/Github/PyTorch-VAE/WC_Train_Data.csv"
   csv_path_val: "/home/seuss/Research/Github/PyTorch-VAE/WC_Val_Data.csv"
-  imgH_size: 128
-  imgW_size: 128
-  batch_size: 1024 # Better to have a square number
+  imgH_size: 256
+  imgW_size: 256
+  batch_size: 256 # Better to have a square number
   LR: 0.005
   weight_decay: 0.0
   scheduler_gamma: 0.95
 
 trainer_params:
   gpus: 1
-  max_epochs: 200
+  max_epochs: 500
 
 logging_params:
   save_dir: "/home/seuss/Research/FMEphys/logs/"
