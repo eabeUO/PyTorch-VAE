@@ -158,7 +158,7 @@ class VQVAE(BaseVAE):
         modules.append(
             nn.Sequential(
                 nn.ConvTranspose2d(hidden_dims[-1],
-                                   out_channels=3,
+                                   out_channels=1,
                                    kernel_size=4,
                                    stride=2, padding=1),
                 nn.Tanh()))

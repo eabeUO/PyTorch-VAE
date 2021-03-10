@@ -81,7 +81,7 @@ class VAEXperiment(pl.LightningModule):
         #                   nrow=12)
 
         try:
-            samples = self.model.sample(144,
+            samples = self.model.sample(64,
                                         self.curr_device)
             vutils.save_image(samples.cpu().data,
                               f"{self.logger.save_dir}{self.logger.name}/version_{self.logger.version}/"
@@ -194,14 +194,15 @@ class VAEXperiment(pl.LightningModule):
                                             SetRange])
         elif self.params['dataset'] == 'WorldCam':
             transform = transforms.Compose([
-                                transforms.RandomCrop((self.params['imgH_size'],self.params['imgW_size'])),
-                                # transforms.Resize((self.params['imgH_size'],self.params['imgW_size'])),
+                                # transforms.RandomCrop((self.params['imgH_size'],self.params['imgW_size'])),
+                                transforms.Resize((self.params['imgH_size'],self.params['imgW_size'])),
                                 transforms.Grayscale(num_output_channels=1),
                             #    transforms.RandomResizedCrop((self.params['imgH_size'],self.params['imgW_size'])),
-                                transforms.RandomHorizontalFlip(),
+                                # transforms.RandomHorizontalFlip(),
                             #    transforms.RandomVerticalFlip(),
                             #    transforms.ColorJitter(),
-                                transforms.ToTensor()])
+                                transforms.ToTensor(),
+                                SetRange])
         else:
             raise ValueError('Undefined dataset type')
         return transform

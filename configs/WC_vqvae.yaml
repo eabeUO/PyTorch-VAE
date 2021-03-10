@@ -1,7 +1,10 @@
 model_params:
-  name: 'VanillaVAE'
+  name: 'VQVAE'
   in_channels: 1
-  latent_dim: 128
+  embedding_dim: 64
+  num_embeddings: 512
+  img_size: 128
+  beta: 0.25
 
 exp_params:
   dataset: WorldCam
@@ -10,16 +13,16 @@ exp_params:
   csv_path_val: "/home/seuss/Research/FMEphys/WC_Val_Data.csv"
   imgH_size: 128
   imgW_size: 128
-  batch_size: 512 # Better to have a square number
-  LR: 0.0005
+  batch_size: 100 # Better to have a square number
+  LR: 0.001
   weight_decay: 0.0
-  scheduler_gamma: 0.95
+  scheduler_gamma: 0.0
 
 trainer_params:
   gpus: 1
-  max_epochs: 500
+  max_epochs: 100
 
 logging_params:
   save_dir: "/home/seuss/Research/FMEphys/logs/"
-  name: "VanillaVAE"
+  name: "VQVAE"
   manual_seed: 1265

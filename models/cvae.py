@@ -21,7 +21,8 @@ class ConditionalVAE(BaseVAE):
 
         self.embed_class = nn.Linear(num_classes, img_size * img_size)
         self.embed_data = nn.Conv2d(in_channels, in_channels, kernel_size=1)
-
+        fout_channels = in_channels
+        
         modules = []
         if hidden_dims is None:
             hidden_dims = [32, 64, 128, 256, 512]
@@ -76,7 +77,7 @@ class ConditionalVAE(BaseVAE):
                                                output_padding=1),
                             nn.BatchNorm2d(hidden_dims[-1]),
                             nn.LeakyReLU(),
-                            nn.Conv2d(hidden_dims[-1], out_channels= 3,
+                            nn.Conv2d(hidden_dims[-1], out_channels= fout_channels,
                                       kernel_size= 3, padding= 1),
                             nn.Tanh())
 
