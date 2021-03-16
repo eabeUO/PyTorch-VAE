@@ -1,6 +1,6 @@
 model_params:
   name: 'VanillaVAE'
-  in_channels: 1
+  in_channels: 3
   latent_dim: 128
 
 exp_params:
@@ -8,12 +8,12 @@ exp_params:
   data_path: "/home/seuss/Research/FMEphys/"
   csv_path_train: "/home/seuss/Research/FMEphys/WC_Train_Data.csv"
   csv_path_val: "/home/seuss/Research/FMEphys/WC_Val_Data.csv"
-  imgH_size: 128
-  imgW_size: 128
-  batch_size: 512 # Better to have a square number
-  LR: 0.0001
+  imgH_size: 64
+  imgW_size: 64
+  batch_size: 2048 # Better to have a square number
+  LR: 0.001
   weight_decay: 0.0
-  scheduler_gamma: 0.95
+  scheduler_gamma: 0.995
 
 trainer_params:
   gpus: 1

@@ -1,7 +1,7 @@
 model_params:
   name: 'VQVAE'
   in_channels: 1
-  embedding_dim: 64
+  embedding_dim: 256
   num_embeddings: 512
   img_size: 128
   beta: 0.25
