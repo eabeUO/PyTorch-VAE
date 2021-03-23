@@ -122,6 +122,11 @@ class VanillaVAE(BaseVAE):
         z = self.reparameterize(mu, log_var)
         return  [self.decode(z), input, mu, log_var]
 
+    def grab_latents(self, input: Tensor, **kwargs) -> List[Tensor]:
+        mu, log_var = self.encode(input)
+        z = self.reparameterize(mu, log_var)
+        return  [z, self.decode(z), input, mu, log_var]
+
     def loss_function(self,
                       *args,
                       **kwargs) -> dict:
@@ -138,7 +143,7 @@ class VanillaVAE(BaseVAE):
         log_var = args[3]
 
         kld_weight = kwargs['M_N'] # Account for the minibatch samples from the dataset
-        recons_loss =F.mse_loss(recons, input)
+        recons_loss =F.mse_loss(recons, input)  
 
 
         kld_loss = torch.mean(-0.5 * torch.sum(1 + log_var - mu ** 2 - log_var.exp(), dim = 1), dim = 0)

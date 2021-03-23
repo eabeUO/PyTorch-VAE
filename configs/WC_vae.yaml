@@ -1,6 +1,6 @@
 model_params:
   name: 'VanillaVAE'
-  in_channels: 3
+  in_channels: 1
   latent_dim: 128
 
 exp_params:
@@ -13,13 +13,13 @@ exp_params:
   batch_size: 2048 # Better to have a square number
   LR: 0.001
   weight_decay: 0.0
-  scheduler_gamma: 0.995
+  scheduler_gamma: 1
 
 trainer_params:
   gpus: 1
   max_epochs: 500
 
 logging_params:
-  save_dir: "/home/seuss/Research/FMEphys/logs/"
+  save_dir: "/home/seuss/Research/FMEphys/logs2/"
   name: "VanillaVAE"
   manual_seed: 1265

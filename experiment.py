@@ -154,7 +154,10 @@ class VAEXperiment(pl.LightningModule):
                           batch_size= self.params['batch_size'],
                           shuffle = True,
                           drop_last=True,
-                          num_workers=32)
+                          num_workers=32,
+                        #   persistent_workers=True,
+                          pin_memory=True,
+                          prefetch_factor=5)
 
     @data_loader
     def val_dataloader(self):
@@ -196,10 +199,10 @@ class VAEXperiment(pl.LightningModule):
                                             SetRange])
         elif self.params['dataset'] == 'WorldCam':
             transform = transforms.Compose([
+                                transforms.Grayscale(num_output_channels=1),
                                 # transforms.RandomCrop((self.params['imgH_size'],self.params['imgW_size'])),
-                                # transforms.RandomHorizontalFlip(),
+                                transforms.RandomHorizontalFlip(),
                                 transforms.Resize((self.params['imgH_size'],self.params['imgW_size'])),
-                                # transforms.Grayscale(num_output_channels=1),
                                 # transforms.RandomResizedCrop((self.params['imgH_size'],self.params['imgW_size'])),
                                 # transforms.RandomVerticalFlip(),
                                 # transforms.ColorJitter(),
