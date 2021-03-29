@@ -9,7 +9,7 @@ from torchvision import transforms
 import torchvision.utils as vutils
 from torchvision.datasets import CelebA
 from torch.utils.data import DataLoader
-from datasets import WCDataset
+from datasets import WCDataset, WCShotgunDataset
 
 class VAEXperiment(pl.LightningModule):
 
@@ -68,7 +68,10 @@ class VAEXperiment(pl.LightningModule):
         test_input = test_input.to(self.curr_device)
         # test_label = test_label.to(self.curr_device)
         recons = self.model.generate(test_input)
-        self.logger.experiment.add_image('recons',vutils.make_grid(recons.data[:100],nrow=10,normalize=True),self.current_epoch)
+        if self.params['dataset'] == 'WorldCamShotgun':
+            self.logger.experiment.add_image('recons',vutils.make_grid(recons.data[:100,:1],nrow=10,normalize=True),self.current_epoch)
+        else:
+            self.logger.experiment.add_image('recons',vutils.make_grid(recons.data[:100],nrow=10,normalize=True),self.current_epoch)
         # vutils.save_image(recons.data[:100],
         #                   f"{self.logger.save_dir}{self.logger.name}/version_{self.logger.version}/"
         #                   f"recons_{self.logger.name}_{self.current_epoch}.png",
@@ -82,9 +85,11 @@ class VAEXperiment(pl.LightningModule):
         #                   nrow=12)
 
         try:
-            samples = self.model.sample(100,
-                                        self.curr_device)
-            self.logger.experiment.add_image('samples',vutils.make_grid(samples,nrow=10,normalize=True),self.current_epoch)
+            samples = self.model.sample(100,self.curr_device)
+            if self.params['dataset'] == 'WorldCamShotgun':
+                self.logger.experiment.add_image('samples',vutils.make_grid(samples[:,:1],nrow=10,normalize=True),self.current_epoch)
+            else:
+                self.logger.experiment.add_image('samples',vutils.make_grid(samples,nrow=10,normalize=True),self.current_epoch)
             # vutils.save_image(samples.cpu().data,
             #                   f"{self.logger.save_dir}{self.logger.name}/version_{self.logger.version}/"
             #                   f"{self.logger.name}_{self.current_epoch}.png",
@@ -146,6 +151,11 @@ class VAEXperiment(pl.LightningModule):
             dataset = WCDataset(root_dir = self.params['data_path'],
                                 csv_file = self.params['csv_path_train'],
                                 transform=transform)
+        elif self.params['dataset'] == 'WorldCamShotgun':
+            dataset = WCShotgunDataset(root_dir = self.params['data_path'],
+                                N_fm = self.params['in_channels'],
+                                csv_file = self.params['csv_path_train'],
+                                transform=transform)
         else:
             raise ValueError('Undefined dataset type')
 
@@ -155,9 +165,9 @@ class VAEXperiment(pl.LightningModule):
                           shuffle = True,
                           drop_last=True,
                           num_workers=32,
-                        #   persistent_workers=True,
+                          persistent_workers=True,
                           pin_memory=True,
-                          prefetch_factor=5)
+                          prefetch_factor=10)
 
     @data_loader
     def val_dataloader(self):
@@ -176,6 +186,16 @@ class VAEXperiment(pl.LightningModule):
             self.sample_dataloader = DataLoader(WCDataset(root_dir = self.params['data_path'],
                                                           csv_file = self.params['csv_path_val'],
                                                           transform=transform),
+                                                batch_size=self.params['batch_size'],
+                                                shuffle = False,
+                                                drop_last=True,
+                                                num_workers=32)
+            self.num_val_imgs = len(self.sample_dataloader)
+        elif self.params['dataset'] == 'WorldCamShotgun':
+            self.sample_dataloader = DataLoader(WCShotgunDataset(root_dir = self.params['data_path'],
+                                                                 N_fm = self.params['in_channels'],
+                                                                 csv_file = self.params['csv_path_val'],
+                                                                 transform=transform),
                                                 batch_size=self.params['batch_size'],
                                                 shuffle = False,
                                                 drop_last=True,
@@ -201,11 +221,18 @@ class VAEXperiment(pl.LightningModule):
             transform = transforms.Compose([
                                 transforms.Grayscale(num_output_channels=1),
                                 # transforms.RandomCrop((self.params['imgH_size'],self.params['imgW_size'])),
-                                transforms.RandomHorizontalFlip(),
+                                # transforms.RandomHorizontalFlip(),
                                 transforms.Resize((self.params['imgH_size'],self.params['imgW_size'])),
                                 # transforms.RandomResizedCrop((self.params['imgH_size'],self.params['imgW_size'])),
                                 # transforms.RandomVerticalFlip(),
                                 # transforms.ColorJitter(),
+                                transforms.ToTensor(),
+                                SetRange])
+        elif self.params['dataset'] == 'WorldCamShotgun':
+            transform = transforms.Compose([
+                                transforms.Grayscale(num_output_channels=1),
+                                # transforms.RandomHorizontalFlip(),
+                                transforms.Resize((self.params['imgH_size'],self.params['imgW_size'])),
                                 transforms.ToTensor(),
                                 SetRange])
         else:

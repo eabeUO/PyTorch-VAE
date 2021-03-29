@@ -39,12 +39,12 @@ class WCDataset(Dataset):
         return sample
 
 class WCShotgunDataset(Dataset):
-    def __init__(self, csv_file, seq_len, root_dir, transform=None):
+    def __init__(self, csv_file, N_fm, root_dir, transform=None):
         
         self.data_paths = pd.read_csv(csv_file)
         self.root_dir = root_dir
         self.transform = transform
-        self.seq_len = seq_len
+        self.N_fm = N_fm
 
     def __len__(self):
         return(len(self.data_paths))
@@ -53,10 +53,13 @@ class WCShotgunDataset(Dataset):
         if torch.is_tensor(idx):
             idx = idx.tolist()
         
-        img_name = os.path.join(self.root_dir,self.data_paths.iloc[idx,1],self.data_paths.iloc[idx,2])
-        sample = pil_loader(img_name)
-        
-        if self.transform:
-            sample = self.transform(sample)
-            
+        sample=[]
+        for n in range(self.N_fm):
+            img_name = eval(self.data_paths['FileName'][idx])[n]
+            img_path = os.path.join(self.root_dir,self.data_paths.iloc[idx,1],img_name)
+            img = pil_loader(img_path)
+            if self.transform:
+                img = self.transform(img)
+            sample.append(img)
+        sample = torch.cat(sample,dim=0)
         return sample

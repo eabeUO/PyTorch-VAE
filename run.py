@@ -47,7 +47,7 @@ runner = Trainer(weights_save_path=f"{tt_logger.save_dir}",
                  log_every_n_steps=100,
                  limit_train_batches=1.,
                  val_check_interval=1.,
-                 num_sanity_val_steps=5,
+                 num_sanity_val_steps=0,
                  **config['trainer_params'])
 
 print(f"======= Training {config['model_params']['name']} =======")

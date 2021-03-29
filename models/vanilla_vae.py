@@ -19,7 +19,7 @@ class VanillaVAE(BaseVAE):
         self.in_channels = in_channels
         modules = []
         if hidden_dims is None:
-            hidden_dims = [32, 64, 128, 256, 512] 
+            hidden_dims = [32*in_channels, 64*in_channels, 128*in_channels, 256*in_channels, 512*in_channels]
             self.hidden_dims = hidden_dims.copy()
 
         # Build Encoder
@@ -125,7 +125,7 @@ class VanillaVAE(BaseVAE):
     def grab_latents(self, input: Tensor, **kwargs) -> List[Tensor]:
         mu, log_var = self.encode(input)
         z = self.reparameterize(mu, log_var)
-        return  [z, self.decode(z), input, mu, log_var]
+        return  [z.detach(), self.decode(z).detach(), input.detach(), mu.detach(), log_var.detach()]
 
     def loss_function(self,
                       *args,

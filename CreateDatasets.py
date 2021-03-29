@@ -1,24 +1,24 @@
 import glob
 import os
 import pandas as pd
+import argparse
 import numpy as np
 from functools import partial
 import subprocess
 
-rootdir = os.path.expanduser('~/Research/FMEphys/')
+parser = argparse.ArgumentParser(description='Create Dataset for WC Data')
+parser.add_argument('--rootdir',  '-r',
+                    help =  'RootDir',
+                    default='~/Research/FMEphys/')
+parser.add_argument('--shotgun', type=bool,
+                    default=True)
+
+args = parser.parse_args()
+rootdir = os.path.expanduser(args.rootdir)
+
 # rootdir = os.path.expanduser('~/niell/seuss/Research/FMEphys')
 # Set up partial functions for directory managing
 join = partial(os.path.join,rootdir)
-
-
-# TrainSet = ['012821_EE8P6LT_control_Rig2_fm1_WORLD',
-#             '020821_EE12P1RN_control_Rig2_fm1_WORLD',
-#             '021021_EE12P1RN_control_Rig2_fm1_WORLD',
-#             '021121_EE12P1RN_control_Rig2_fm1_WORLD',
-#             '021721_EE11P11LT_control_Rig2_fm2_WORLD',
-#             '022321_EE13P2RT_control_Rig2_fm1_WORLD',
-#             '031021_EE11P13LTRN_control_Rig2_fm1_WORLD',]
-# ValSet = ['021121_EE12P1RN_control_Rig2_fm2_WORLD']
 
 ########## Checks if path exists, if not then creates directory ##########
 def check_path(basepath, path):
@@ -54,7 +54,6 @@ def extract_frames_from_csv(csv_path):
     
 
 
-
 def create_train_val_csv(TrainSet,ValSet):
     ExpDir = []
     DNum = []
@@ -65,10 +64,10 @@ def create_train_val_csv(TrainSet,ValSet):
             ExpDir.append(DataPaths[n].split('/')[-2])
             DNum.append(DataPaths[n].split('/')[-1])
 
-    df = pd.DataFrame({'BasePath':ExpDir,'FileName':DNum})
-    df.to_csv(join('WC_Train_Data.csv'))
+    df_train = pd.DataFrame({'BasePath':ExpDir,'FileName':DNum})
+    df_train.to_csv(join('WC_Train_Data.csv'))
 
-    print('Total Training Size: ', len(df))
+    print('Total Training Size: ', len(df_train))
 
 
     ExpDir = []
@@ -80,11 +79,50 @@ def create_train_val_csv(TrainSet,ValSet):
             ExpDir.append(DataPaths[n].split('/')[-2])
             DNum.append(DataPaths[n].split('/')[-1])
 
-    df = pd.DataFrame({'BasePath':ExpDir,'FileName':DNum})
-    df.to_csv(join('WC_Val_Data.csv'))
+    df_val = pd.DataFrame({'BasePath':ExpDir,'FileName':DNum})
+    df_val.to_csv(join('WC_Val_Data.csv'))
 
-    print('Total Validation Size: ', len(df))
+    print('Total Validation Size: ', len(df_val))
+    return df_train, df_val
 
+def create_train_val_csv_shotgun(TrainSet,ValSet,N_fm=4):
+    ExpDir = []
+    DNum = []
+    for exp in TrainSet:
+        DataPaths = sorted(glob.glob(join(exp,'*.png')))
+        print('{}: '.format(exp),len(DataPaths))
+        for n in range(len(DataPaths)):
+            if n < N_fm: 
+                DNum_temp = [DataPaths[0].split('/')[-1] for t in range(N_fm-n)]
+                DNum_temp = sorted(DNum_temp + [DataPaths[n-t].split('/')[-1] for t in range(N_fm - len(DNum_temp))])
+                DNum.append(DNum_temp)
+            else:
+                DNum.append([DataPaths[n+t-N_fm+1].split('/')[-1] for t in range(N_fm)])
+            ExpDir.append(DataPaths[n].split('/')[-2])
+    df_train = pd.DataFrame({'BasePath':ExpDir,'FileName':DNum})
+    df_train.to_csv(join('WCShotgun_Train_Data.csv'))
+
+    print('Total Training Size: ', len(df_train))
+
+
+    ExpDir = []
+    DNum = []
+    for exp in ValSet:
+        DataPaths = sorted(glob.glob(join(exp,'*.png')))
+        print('{}: '.format(exp),len(DataPaths))
+        for n in range(len(DataPaths)):
+            if n < N_fm: 
+                DNum_temp = [DataPaths[0].split('/')[-1] for t in range(N_fm-n)]
+                DNum_temp = sorted(DNum_temp + [DataPaths[n-t].split('/')[-1] for t in range(N_fm - len(DNum_temp))])
+                DNum.append(DNum_temp)
+            else:
+                DNum.append([DataPaths[n+t-N_fm+1].split('/')[-1] for t in range(N_fm)])
+            ExpDir.append(DataPaths[n].split('/')[-2])
+    df_val = pd.DataFrame({'BasePath':ExpDir,'FileName':DNum})
+    df_val.to_csv(join('WCShotgun_Val_Data.csv'))
+
+    print('Total Validation Size: ', len(df_val))
+    return df_train, df_val
 
 if __name__ == '__main__':
     
@@ -96,4 +134,7 @@ if __name__ == '__main__':
     ValSet = [TrainSet[valnum]]
     TrainSet.pop(valnum)
     
-    create_train_val_csv(TrainSet,ValSet)
+    if args.shotgun:
+        df_train,df_val = create_train_val_csv_shotgun(TrainSet,ValSet)
+    else:
+        df_train,df_val = create_train_val_csv(TrainSet,ValSet)
