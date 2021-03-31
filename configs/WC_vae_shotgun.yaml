@@ -1,0 +1,26 @@
+model_params:
+  name: 'VanillaVAE'
+  in_channels: 4
+  latent_dim: 128
+
+exp_params:
+  dataset: WorldCamShotgun
+  data_path: "/home/seuss/Research/FMEphys/"
+  csv_path_train: "/home/seuss/Research/FMEphys/WCShotgun_Train_Data.csv"
+  csv_path_val: "/home/seuss/Research/FMEphys/WCShotgun_Val_Data.csv"
+  imgH_size: 64
+  imgW_size: 64
+  batch_size: 2048 # Better to have a square number
+  LR: 0.001
+  weight_decay: 0.0
+  scheduler_gamma: 1
+  N_fm: 4
+
+trainer_params:
+  gpus: 1
+  max_epochs: 500
+
+logging_params:
+  save_dir: "/home/seuss/Research/FMEphys/logs2/"
+  name: "VanillaVAE"
+  manual_seed: 1265

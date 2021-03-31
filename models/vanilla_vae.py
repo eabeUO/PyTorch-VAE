@@ -19,7 +19,7 @@ class VanillaVAE(BaseVAE):
         self.in_channels = in_channels
         modules = []
         if hidden_dims is None:
-            hidden_dims = [32*in_channels, 64*in_channels, 128*in_channels, 256*in_channels, 512*in_channels]
+            hidden_dims = [32, 64, 128, 256, 512]
             self.hidden_dims = hidden_dims.copy()
 
         # Build Encoder

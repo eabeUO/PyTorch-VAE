@@ -6,18 +6,25 @@ import numpy as np
 from functools import partial
 import subprocess
 
+def str_to_bool(value):
+    if isinstance(value, bool):
+        return value
+    if value.lower() in {'False', 'false', 'f', '0', 'no', 'n'}:
+        return False
+    elif value.lower() in {'True', 'true', 't', '1', 'yes', 'y'}:
+        return True
+    raise ValueError(f'{value} is not a valid boolean value')
+
 parser = argparse.ArgumentParser(description='Create Dataset for WC Data')
 parser.add_argument('--rootdir',  '-r',
                     help =  'RootDir',
                     default='~/Research/FMEphys/')
-parser.add_argument('--shotgun', type=bool,
-                    default=True)
+parser.add_argument('--shotgun', type=str_to_bool, nargs='?', const=True, default=False)
 
 args = parser.parse_args()
 rootdir = os.path.expanduser(args.rootdir)
 
-# rootdir = os.path.expanduser('~/niell/seuss/Research/FMEphys')
-# Set up partial functions for directory managing
+##### Set up partial functions for directory managing
 join = partial(os.path.join,rootdir)
 
 ########## Checks if path exists, if not then creates directory ##########
@@ -31,6 +38,7 @@ def check_path(basepath, path):
     else:
         return os.path.join(basepath, path)
 
+########## Loads CSV with Experiments and extrats WC frames ##########
 def extract_frames_from_csv(csv_path):
     AllExps = pd.read_csv(csv_path)
 
@@ -53,7 +61,7 @@ def extract_frames_from_csv(csv_path):
             subprocess.call(['ffmpeg', '-i', FM1Cam[0], '-vf','fps=30', '-vf','scale=128:128', SavePath])
     
 
-
+########## Creates csv, collecting frame paths for train and val datasets ##########
 def create_train_val_csv(TrainSet,ValSet):
     ExpDir = []
     DNum = []
@@ -85,6 +93,7 @@ def create_train_val_csv(TrainSet,ValSet):
     print('Total Validation Size: ', len(df_val))
     return df_train, df_val
 
+########## Creates csv, collecting frame paths for train and val datasets in shotgun style ##########
 def create_train_val_csv_shotgun(TrainSet,ValSet,N_fm=4):
     ExpDir = []
     DNum = []
@@ -126,7 +135,7 @@ def create_train_val_csv_shotgun(TrainSet,ValSet,N_fm=4):
 
 if __name__ == '__main__':
     
-    csv_path = os.path.expanduser('~/Research/FMEphys/Completed_experiment_pool.csv')
+    csv_path = os.path.expanduser('~/Research//Github/PyTorch-VAE/CreateDatasets.py')
 
     extract_frames_from_csv(csv_path)
     TrainSet = sorted([os.path.basename(x) for x in glob.glob(join('*WORLD'))])

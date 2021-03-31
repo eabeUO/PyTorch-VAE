@@ -153,7 +153,7 @@ class VAEXperiment(pl.LightningModule):
                                 transform=transform)
         elif self.params['dataset'] == 'WorldCamShotgun':
             dataset = WCShotgunDataset(root_dir = self.params['data_path'],
-                                N_fm = self.params['in_channels'],
+                                N_fm = self.params['N_fm'],
                                 csv_file = self.params['csv_path_train'],
                                 transform=transform)
         else:
@@ -193,7 +193,7 @@ class VAEXperiment(pl.LightningModule):
             self.num_val_imgs = len(self.sample_dataloader)
         elif self.params['dataset'] == 'WorldCamShotgun':
             self.sample_dataloader = DataLoader(WCShotgunDataset(root_dir = self.params['data_path'],
-                                                                 N_fm = self.params['in_channels'],
+                                                                 N_fm = self.params['N_fm'],
                                                                  csv_file = self.params['csv_path_val'],
                                                                  transform=transform),
                                                 batch_size=self.params['batch_size'],
