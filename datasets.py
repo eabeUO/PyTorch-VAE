@@ -10,7 +10,6 @@ from torchvision import transforms
 
 # sys.path.insert(0, os.path.join(os.path.expanduser('~/Research/Github/'),'PyTorch-VAE'))
 
-
 def pil_loader(path):
     with open(path, 'rb') as f:
         with Image.open(f) as img:
@@ -62,4 +61,30 @@ class WCShotgunDataset(Dataset):
                 img = self.transform(img)
             sample.append(img)
         sample = torch.cat(sample,dim=0)
+        return sample
+
+class WC3dDataset(Dataset):
+    def __init__(self, csv_file, N_fm, root_dir, transform=None):
+        
+        self.data_paths = pd.read_csv(csv_file)
+        self.root_dir = root_dir
+        self.transform = transform
+        self.N_fm = N_fm
+
+    def __len__(self):
+        return(len(self.data_paths))
+    
+    def __getitem__(self,idx):
+        if torch.is_tensor(idx):
+            idx = idx.tolist()
+        
+        sample=[]
+        for n in range(self.N_fm):
+            img_name = eval(self.data_paths['FileName'][idx])[n]
+            img_path = os.path.join(self.root_dir,self.data_paths.iloc[idx,1],img_name)
+            img = pil_loader(img_path)
+            if self.transform:
+                img = self.transform(img)
+            sample.append(img)
+        sample = torch.cat(sample,dim=0).unsqueeze(1) # To put into B x C x D x W x H format
         return sample

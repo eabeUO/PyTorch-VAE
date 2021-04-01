@@ -9,7 +9,7 @@ from torchvision import transforms
 import torchvision.utils as vutils
 from torchvision.datasets import CelebA
 from torch.utils.data import DataLoader
-from datasets import WCDataset, WCShotgunDataset
+from datasets import WCDataset, WCShotgunDataset, WC3dDataset
 
 class VAEXperiment(pl.LightningModule):
 
