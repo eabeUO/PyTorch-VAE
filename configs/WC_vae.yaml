@@ -1,6 +1,6 @@
 model_params:
   name: 'VanillaVAE'
-  in_channels: 4
+  in_channels: 1
   latent_dim: 128
 
 exp_params:
@@ -14,7 +14,7 @@ exp_params:
   LR: 0.001
   weight_decay: 0.0
   scheduler_gamma: 1
-  in_channels: 4
+  in_channels: 1
 
 trainer_params:
   gpus: 1
