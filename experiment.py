@@ -70,6 +70,8 @@ class VAEXperiment(pl.LightningModule):
         recons = self.model.generate(test_input)
         if self.params['dataset'] == 'WorldCamShotgun':
             self.logger.experiment.add_image('recons',vutils.make_grid(recons.data[:100,:1],nrow=10,normalize=True),self.current_epoch)
+        elif self.params['dataset'] == 'WorldCam3D':
+            self.logger.experiment.add_image('recons',vutils.make_grid(recons.data[:100,:1,0],nrow=10,normalize=True),self.current_epoch)
         else:
             self.logger.experiment.add_image('recons',vutils.make_grid(recons.data[:100],nrow=10,normalize=True),self.current_epoch)
         # vutils.save_image(recons.data[:100],
@@ -88,6 +90,8 @@ class VAEXperiment(pl.LightningModule):
             samples = self.model.sample(100,self.curr_device)
             if self.params['dataset'] == 'WorldCamShotgun':
                 self.logger.experiment.add_image('samples',vutils.make_grid(samples[:,:1],nrow=10,normalize=True),self.current_epoch)
+            elif self.params['dataset'] == 'WorldCam3D':
+                self.logger.experiment.add_image('samples',vutils.make_grid(samples[:,:1,0],nrow=10,normalize=True),self.current_epoch)
             else:
                 self.logger.experiment.add_image('samples',vutils.make_grid(samples,nrow=10,normalize=True),self.current_epoch)
             # vutils.save_image(samples.cpu().data,
@@ -156,6 +160,11 @@ class VAEXperiment(pl.LightningModule):
                                 N_fm = self.params['N_fm'],
                                 csv_file = self.params['csv_path_train'],
                                 transform=transform)
+        elif self.params['dataset'] == 'WorldCam3D':
+            dataset = WC3dDataset(root_dir = self.params['data_path'],
+                                N_fm = self.params['N_fm'],
+                                csv_file = self.params['csv_path_train'],
+                                transform=transform)
         else:
             raise ValueError('Undefined dataset type')
 
@@ -201,6 +210,16 @@ class VAEXperiment(pl.LightningModule):
                                                 drop_last=True,
                                                 num_workers=32)
             self.num_val_imgs = len(self.sample_dataloader)
+        elif self.params['dataset'] == 'WorldCam3D':
+            self.sample_dataloader = DataLoader(WC3dDataset(root_dir = self.params['data_path'],
+                                                                 N_fm = self.params['N_fm'],
+                                                                 csv_file = self.params['csv_path_val'],
+                                                                 transform=transform),
+                                                batch_size=self.params['batch_size'],
+                                                shuffle = False,
+                                                drop_last=True,
+                                                num_workers=32)
+            self.num_val_imgs = len(self.sample_dataloader)
         else:
             raise ValueError('Undefined dataset type')
 
@@ -229,6 +248,13 @@ class VAEXperiment(pl.LightningModule):
                                 transforms.ToTensor(),
                                 SetRange])
         elif self.params['dataset'] == 'WorldCamShotgun':
+            transform = transforms.Compose([
+                                transforms.Grayscale(num_output_channels=1),
+                                # transforms.RandomHorizontalFlip(),
+                                transforms.Resize((self.params['imgH_size'],self.params['imgW_size'])),
+                                transforms.ToTensor(),
+                                SetRange])
+        elif self.params['dataset'] == 'WorldCam3D':
             transform = transforms.Compose([
                                 transforms.Grayscale(num_output_channels=1),
                                 # transforms.RandomHorizontalFlip(),

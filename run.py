@@ -14,7 +14,7 @@ parser.add_argument('--config',  '-c',
                     dest="filename",
                     metavar='FILE',
                     help =  'path to the config file',
-                    default='configs/WC_vae_shotgun.yaml')
+                    default='configs/WC_vae3d.yaml')
 
 args = parser.parse_args()
 with open(args.filename, 'r') as file:
@@ -48,6 +48,7 @@ runner = Trainer(weights_save_path=f"{tt_logger.save_dir}",
                  limit_train_batches=1.,
                  val_check_interval=1.,
                  num_sanity_val_steps=0,
+                 log_gpu_memory='min_max',
                  **config['trainer_params'])
 
 print(f"======= Training {config['model_params']['name']} =======")

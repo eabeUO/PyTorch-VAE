@@ -86,5 +86,5 @@ class WC3dDataset(Dataset):
             if self.transform:
                 img = self.transform(img)
             sample.append(img)
-        sample = torch.cat(sample,dim=0).unsqueeze(1) # To put into B x C x D x W x H format
+        sample = torch.cat(sample,dim=0).unsqueeze(0) # To put into B x C x D x H x W format
         return sample

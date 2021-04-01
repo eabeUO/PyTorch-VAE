@@ -9,12 +9,14 @@ class VAE3d(BaseVAE):
     def __init__(self,
                  in_channels: int,
                  latent_dim: int,
+                 depth_dim: int,
                  hidden_dims: List = None,
                  **kwargs) -> None:
         super(VAE3d, self).__init__()
 
         self.latent_dim = latent_dim
         self.in_channels = in_channels
+        self.depth_dim = depth_dim
         modules = []
         if hidden_dims is None:
             hidden_dims = [32, 64, 128, 256, 512]
@@ -25,21 +27,21 @@ class VAE3d(BaseVAE):
             modules.append(
                 nn.Sequential(
                     nn.Conv3d(in_channels, out_channels=h_dim,
-                              kernel_size= 3, stride= 2, padding  = 1),
-                    nn.BatchNorm2d(h_dim),
+                              kernel_size=3, stride=(1,2,2), padding=1),
+                    nn.BatchNorm3d(h_dim),
                     nn.LeakyReLU())
             )
             in_channels = h_dim
 
         self.encoder = nn.Sequential(*modules)
-        self.fc_mu = nn.Linear(hidden_dims[-1]*4, latent_dim)
-        self.fc_var = nn.Linear(hidden_dims[-1]*4, latent_dim)
+        self.fc_mu = nn.Linear(hidden_dims[-1]*4*self.depth_dim, latent_dim)
+        self.fc_var = nn.Linear(hidden_dims[-1]*4*self.depth_dim, latent_dim)
 
 
         # Build Decoder
         modules = []
 
-        self.decoder_input = nn.Linear(latent_dim, hidden_dims[-1] * 4)
+        self.decoder_input = nn.Linear(latent_dim, hidden_dims[-1] * 4 * self.depth_dim)
 
         hidden_dims.reverse()
 
@@ -49,10 +51,10 @@ class VAE3d(BaseVAE):
                     nn.ConvTranspose3d(hidden_dims[i],
                                        hidden_dims[i + 1],
                                        kernel_size=3,
-                                       stride = 2,
+                                       stride = (1,2,2),
                                        padding=1,
-                                       output_padding=1),
-                    nn.BatchNorm2d(hidden_dims[i + 1]),
+                                       output_padding=(0,1,1)),
+                    nn.BatchNorm3d(hidden_dims[i + 1]),
                     nn.LeakyReLU())
             )
 
@@ -64,13 +66,13 @@ class VAE3d(BaseVAE):
                             nn.ConvTranspose3d(hidden_dims[-1],
                                                hidden_dims[-1],
                                                kernel_size=3,
-                                               stride=2,
+                                               stride=(1,2,2),
                                                padding=1,
-                                               output_padding=1),
-                            nn.BatchNorm2d(hidden_dims[-1]),
+                                               output_padding=(0,1,1)),
+                            nn.BatchNorm3d(hidden_dims[-1]),
                             nn.LeakyReLU(),
                             nn.Conv3d(hidden_dims[-1], out_channels= self.in_channels,
-                                      kernel_size= 3, padding= 1),
+                                      kernel_size= 3, padding=1),
                             nn.Tanh())
 
     def encode(self, input: Tensor) -> List[Tensor]:
@@ -98,7 +100,7 @@ class VAE3d(BaseVAE):
         :return: (Tensor) [B x C x H x W]
         """
         result = self.decoder_input(z)
-        result = result.view(-1, self.hidden_dims[-1], 2, 2)
+        result = result.view(-1, self.hidden_dims[-1], self.depth_dim, 2, 2)
         result = self.decoder(result)
         result = self.final_layer(result)
         return result

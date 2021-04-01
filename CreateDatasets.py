@@ -20,7 +20,8 @@ parser.add_argument('--rootdir',  '-r',
                     help =  'RootDir',
                     default='~/Research/FMEphys/')
 parser.add_argument('--shotgun', type=str_to_bool, nargs='?', const=True, default=False)
-
+parser.add_argument('--extract_frames', type=str_to_bool, nargs='?', const=True, default=False)
+parser.add_argument('--N_fm',  '-n', type=int, default=10)
 args = parser.parse_args()
 rootdir = os.path.expanduser(args.rootdir)
 
@@ -136,14 +137,14 @@ def create_train_val_csv_shotgun(TrainSet,ValSet,N_fm=4):
 if __name__ == '__main__':
     
     csv_path = os.path.expanduser('~/Research//Github/PyTorch-VAE/CreateDatasets.py')
-
-    extract_frames_from_csv(csv_path)
+    if args.extract_frames:
+        extract_frames_from_csv(csv_path)
     TrainSet = sorted([os.path.basename(x) for x in glob.glob(join('*WORLD'))])
     valnum = np.random.randint(len(TrainSet))
     ValSet = [TrainSet[valnum]]
     TrainSet.pop(valnum)
     
     if args.shotgun:
-        df_train,df_val = create_train_val_csv_shotgun(TrainSet,ValSet)
+        df_train,df_val = create_train_val_csv_shotgun(TrainSet,ValSet,N_fm=args.N_fm)
     else:
         df_train,df_val = create_train_val_csv(TrainSet,ValSet)
