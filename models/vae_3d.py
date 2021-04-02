@@ -19,7 +19,7 @@ class VAE3d(BaseVAE):
         self.depth_dim = depth_dim
         modules = []
         if hidden_dims is None:
-            hidden_dims = [32, 64, 128, 256, 512]
+            hidden_dims = [8, 16, 32, 64, 128]
             self.hidden_dims = hidden_dims.copy()
 
         # Build Encoder
@@ -29,19 +29,23 @@ class VAE3d(BaseVAE):
                     nn.Conv3d(in_channels, out_channels=h_dim,
                               kernel_size=3, stride=(1,2,2), padding=1),
                     nn.BatchNorm3d(h_dim),
-                    nn.LeakyReLU())
+                    nn.ReLU())
             )
             in_channels = h_dim
 
         self.encoder = nn.Sequential(*modules)
         self.fc_mu = nn.Linear(hidden_dims[-1]*4*self.depth_dim, latent_dim)
         self.fc_var = nn.Linear(hidden_dims[-1]*4*self.depth_dim, latent_dim)
+        # self.fc_mu  = nn.Sequential(nn.Linear(hidden_dims[-1]*4*self.depth_dim, latent_dim),
+        #                             nn.Linear(latent_dim, latent_dim))
+        # self.fc_var = nn.Sequential(nn.Linear(hidden_dims[-1]*4*self.depth_dim, latent_dim),
+        #                             nn.Linear(latent_dim, latent_dim))
 
 
         # Build Decoder
         modules = []
 
-        self.decoder_input = nn.Linear(latent_dim, hidden_dims[-1] * 4 * self.depth_dim)
+        self.decoder_input = nn.Linear(latent_dim, hidden_dims[-1]*4*self.depth_dim)
 
         hidden_dims.reverse()
 
@@ -55,7 +59,7 @@ class VAE3d(BaseVAE):
                                        padding=1,
                                        output_padding=(0,1,1)),
                     nn.BatchNorm3d(hidden_dims[i + 1]),
-                    nn.LeakyReLU())
+                    nn.ReLU())
             )
 
 
@@ -70,7 +74,7 @@ class VAE3d(BaseVAE):
                                                padding=1,
                                                output_padding=(0,1,1)),
                             nn.BatchNorm3d(hidden_dims[-1]),
-                            nn.LeakyReLU(),
+                            nn.ReLU(),
                             nn.Conv3d(hidden_dims[-1], out_channels= self.in_channels,
                                       kernel_size= 3, padding=1),
                             nn.Tanh())

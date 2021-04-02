@@ -11,7 +11,7 @@ exp_params:
   csv_path_val: "/home/seuss/Research/FMEphys/WCShotgun_Val_Data.csv"
   imgH_size: 64
   imgW_size: 64
-  batch_size: 512 # Better to have a square number
+  batch_size: 2048 # Better to have a square number
   LR: 0.001
   weight_decay: 0.0
   scheduler_gamma: 1
