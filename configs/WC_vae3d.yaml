@@ -7,8 +7,8 @@ model_params:
 exp_params:
   dataset: WorldCam3D
   data_path: "/home/seuss/Research/FMEphys/"
-  csv_path_train: "/home/seuss/Research/FMEphys/WCShotgun_Train_Data.csv"
-  csv_path_val: "/home/seuss/Research/FMEphys/WCShotgun_Val_Data.csv"
+  csv_path_train: "/home/seuss/Research/FMEphys/WC3d_Train_Data.csv"
+  csv_path_val: "/home/seuss/Research/FMEphys/WC3d_Val_Data.csv"
   imgH_size: 64
   imgW_size: 64
   batch_size: 2048 # Better to have a square number
