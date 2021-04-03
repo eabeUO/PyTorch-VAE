@@ -48,19 +48,21 @@ def extract_frames_from_csv(csv_path):
                         GoodExps[(GoodExps['Computer']=='v2')][['Experiment date','Animal name','Computer','Drive']]))
     GoodExps['Experiment date'] = pd.to_datetime(GoodExps['Experiment date'],infer_datetime_format=True,format='%m%d%Y').dt.strftime('%2m%2d%2y')
     GoodExps['Computer']=GoodExps['Computer'].str.capitalize()
+    print('Number of Experiments:', len(GoodExps))
 
     for n in range(len(GoodExps)):
         Comp=GoodExps['Computer'][n]
         Drive=GoodExps['Drive'][n]
         Date=GoodExps['Experiment date'][n]
         Ani=GoodExps['Animal name'][n]
-        WorldPath = os.path.join(os.path.expanduser('~/'),Comp,Drive,'freely_moving_ephys/ephys_recordings',Date,Ani,'fm1','*WORLDcalib.avi')
+        WorldPath = os.path.join(os.path.expanduser('~/'),'Seuss',Comp,Drive,'freely_moving_ephys/ephys_recordings',Date,Ani,'fm1','*WORLDcalib.avi')
 
         FM1Cam = glob.glob(WorldPath)
         if len(FM1Cam) > 0:
             SavePath = os.path.join(check_path(rootdir,os.path.basename(FM1Cam[0])[:-9]),'frame_%06d.png')
-            subprocess.call(['ffmpeg', '-i', FM1Cam[0], '-vf','fps=30', '-vf','scale=128:128', SavePath])
-    
+            subprocess.call(['ffmpeg', '-i', FM1Cam[0], '-vf','fps=30, scale=128:128', SavePath])
+        else:
+            print(Date+Ani,'No WORLDcalib.avi')
 
 ########## Creates csv, collecting frame paths for train and val datasets ##########
 def create_train_val_csv(TrainSet,ValSet):
@@ -136,7 +138,7 @@ def create_train_val_csv_shotgun(TrainSet,ValSet,N_fm=4):
 
 if __name__ == '__main__':
     
-    csv_path = os.path.expanduser('~/Research//Github/PyTorch-VAE/CreateDatasets.py')
+    csv_path = os.path.expanduser('~/Research/Github/PyTorch-VAE/Completed_experiment_pool.csv')
     if args.extract_frames:
         extract_frames_from_csv(csv_path)
     TrainSet = sorted([os.path.basename(x) for x in glob.glob(join('*WORLD'))])
