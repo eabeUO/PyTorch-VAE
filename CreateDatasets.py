@@ -19,9 +19,9 @@ parser = argparse.ArgumentParser(description='Create Dataset for WC Data')
 parser.add_argument('--rootdir',  '-r',
                     help =  'RootDir',
                     default='~/Research/FMEphys/')
-parser.add_argument('--shotgun', type=str_to_bool, nargs='?', const=True, default=False)
+parser.add_argument('--DatasetType', type=str, default='3d')
 parser.add_argument('--extract_frames', type=str_to_bool, nargs='?', const=True, default=False)
-parser.add_argument('--N_fm',  '-n', type=int, default=10)
+parser.add_argument('--N_fm',  '-n', type=int, default=16)
 args = parser.parse_args()
 rootdir = os.path.expanduser(args.rootdir)
 
@@ -136,6 +136,47 @@ def create_train_val_csv_shotgun(TrainSet,ValSet,N_fm=4):
     print('Total Validation Size: ', len(df_val))
     return df_train, df_val
 
+########## Creates csv, collecting frame paths for train and val datasets in 3d style ##########
+def create_train_val_csv_3d(TrainSet,ValSet,N_fm=4):
+    ExpDir = []
+    DNum = []
+    for exp in TrainSet:
+        DataPaths = sorted(glob.glob(join(exp,'*.png')))
+        print('{}: '.format(exp),len(DataPaths))
+        for n in range(len(DataPaths)):
+            if n < N_fm: 
+                DNum_temp = [DataPaths[0].split('/')[-1] for t in range(N_fm-n)]
+                DNum_temp = sorted(DNum_temp + [DataPaths[n-t].split('/')[-1] for t in range(N_fm - len(DNum_temp))])
+                DNum.append(DNum_temp)
+            else:
+                DNum.append([DataPaths[n+t-N_fm+1].split('/')[-1] for t in range(N_fm)])
+            ExpDir.append(DataPaths[n].split('/')[-2])
+    df_train = pd.DataFrame({'BasePath':ExpDir,'FileName':DNum})
+    df_train.to_csv(join('WC3d_Train_Data.csv'))
+
+    print('Total Training Size: ', len(df_train))
+
+
+    ExpDir = []
+    DNum = []
+    for exp in ValSet:
+        DataPaths = sorted(glob.glob(join(exp,'*.png')))
+        print('{}: '.format(exp),len(DataPaths))
+        for n in range(len(DataPaths)):
+            if n < N_fm: 
+                DNum_temp = [DataPaths[0].split('/')[-1] for t in range(N_fm-n)]
+                DNum_temp = sorted(DNum_temp + [DataPaths[n-t].split('/')[-1] for t in range(N_fm - len(DNum_temp))])
+                DNum.append(DNum_temp)
+            else:
+                DNum.append([DataPaths[n+t-N_fm+1].split('/')[-1] for t in range(N_fm)])
+            ExpDir.append(DataPaths[n].split('/')[-2])
+    df_val = pd.DataFrame({'BasePath':ExpDir,'FileName':DNum})
+    df_val.to_csv(join('WC3d_Val_Data.csv'))
+
+    print('Total Validation Size: ', len(df_val))
+    return df_train, df_val
+
+
 if __name__ == '__main__':
     
     csv_path = os.path.expanduser('~/Research/Github/PyTorch-VAE/Completed_experiment_pool.csv')
@@ -146,7 +187,9 @@ if __name__ == '__main__':
     ValSet = [TrainSet[valnum]]
     TrainSet.pop(valnum)
     
-    if args.shotgun:
+    if args.DatasetType=='shotgun':
         df_train,df_val = create_train_val_csv_shotgun(TrainSet,ValSet,N_fm=args.N_fm)
+    elif args.DatasetType=='3d':
+        df_train,df_val = create_train_val_csv_3d(TrainSet,ValSet,N_fm=args.N_fm)
     else:
         df_train,df_val = create_train_val_csv(TrainSet,ValSet)

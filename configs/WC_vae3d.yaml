@@ -1,7 +1,7 @@
 model_params:
   name: 'VAE3d'
   in_channels: 1
-  latent_dim: 256
+  latent_dim: 128
   depth_dim: 10
 
 exp_params:
@@ -11,7 +11,7 @@ exp_params:
   csv_path_val: "/home/seuss/Research/FMEphys/WC3d_Val_Data.csv"
   imgH_size: 64
   imgW_size: 64
-  batch_size: 2048 # Better to have a square number
+  batch_size: 1024 # 
   LR: 0.001
   weight_decay: 0.0
   scheduler_gamma: 1
