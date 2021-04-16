@@ -1,12 +1,12 @@
 model_params:
   name: 'VAE3d'
   in_channels: 1
-  latent_dim: 128
+  latent_dim: 512
   depth_dim: 10
 
 exp_params:
   dataset: WorldCam3D
-  data_path: "/home/seuss/Research/FMEphys/"
+  data_path: "/home/seuss/Research/FMEphys/data/"
   csv_path_train: "/home/seuss/Research/FMEphys/WC3d_Train_Data.csv"
   csv_path_val: "/home/seuss/Research/FMEphys/WC3d_Val_Data.csv"
   imgH_size: 64
