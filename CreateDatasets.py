@@ -18,7 +18,7 @@ def str_to_bool(value):
 parser = argparse.ArgumentParser(description='Create Dataset for WC Data')
 parser.add_argument('--rootdir',  '-r',
                     help =  'RootDir',
-                    default='~/Research/FMEphys/')
+                    default='~/Research/FMEphys/data')
 parser.add_argument('--DatasetType', type=str, default='3d')
 parser.add_argument('--extract_frames', type=str_to_bool, nargs='?', const=True, default=False)
 parser.add_argument('--N_fm',  '-n', type=int, default=16)
@@ -65,7 +65,7 @@ def extract_frames_from_csv(csv_path):
             print(Date+Ani,'No WORLDcalib.avi')
 
 ########## Creates csv, collecting frame paths for train and val datasets ##########
-def create_train_val_csv(TrainSet,ValSet):
+def create_train_val_csv(TrainSet,ValSet,save_dir):
     ExpDir = []
     DNum = []
     for exp in TrainSet:
@@ -76,7 +76,7 @@ def create_train_val_csv(TrainSet,ValSet):
             DNum.append(DataPaths[n].split('/')[-1])
 
     df_train = pd.DataFrame({'BasePath':ExpDir,'FileName':DNum})
-    df_train.to_csv(join('WC_Train_Data.csv'))
+    df_train.to_csv(os.path.join(save_dir,'WC_Train_Data.csv'))
 
     print('Total Training Size: ', len(df_train))
 
@@ -91,7 +91,7 @@ def create_train_val_csv(TrainSet,ValSet):
             DNum.append(DataPaths[n].split('/')[-1])
 
     df_val = pd.DataFrame({'BasePath':ExpDir,'FileName':DNum})
-    df_val.to_csv(join('WC_Val_Data.csv'))
+    df_val.to_csv(os.path.join(save_dir,'WC_Val_Data.csv'))
 
     print('Total Validation Size: ', len(df_val))
     return df_train, df_val
@@ -137,7 +137,7 @@ def create_train_val_csv_shotgun(TrainSet,ValSet,N_fm=4):
     return df_train, df_val
 
 ########## Creates csv, collecting frame paths for train and val datasets in 3d style ##########
-def create_train_val_csv_3d(TrainSet,ValSet,N_fm=4):
+def create_train_val_csv_3d(TrainSet,ValSet,save_dir,N_fm=4):
     ExpDir = []
     DNum = []
     for exp in TrainSet:
@@ -152,7 +152,7 @@ def create_train_val_csv_3d(TrainSet,ValSet,N_fm=4):
                 DNum.append([DataPaths[n+t-N_fm+1].split('/')[-1] for t in range(N_fm)])
             ExpDir.append(DataPaths[n].split('/')[-2])
     df_train = pd.DataFrame({'BasePath':ExpDir,'FileName':DNum})
-    df_train.to_csv(join('WC3d_Train_Data.csv'))
+    df_train.to_csv(os.path.join(save_dir,'WC3d_Train_Data.csv'))
 
     print('Total Training Size: ', len(df_train))
 
@@ -171,7 +171,7 @@ def create_train_val_csv_3d(TrainSet,ValSet,N_fm=4):
                 DNum.append([DataPaths[n+t-N_fm+1].split('/')[-1] for t in range(N_fm)])
             ExpDir.append(DataPaths[n].split('/')[-2])
     df_val = pd.DataFrame({'BasePath':ExpDir,'FileName':DNum})
-    df_val.to_csv(join('WC3d_Val_Data.csv'))
+    df_val.to_csv(os.path.join(save_dir,'WC3d_Val_Data.csv'))
 
     print('Total Validation Size: ', len(df_val))
     return df_train, df_val
@@ -186,10 +186,11 @@ if __name__ == '__main__':
     valnum = np.random.randint(len(TrainSet))
     ValSet = [TrainSet[valnum]]
     TrainSet.pop(valnum)
-    
+
+    save_dir = args.save_dir
     if args.DatasetType=='shotgun':
-        df_train,df_val = create_train_val_csv_shotgun(TrainSet,ValSet,N_fm=args.N_fm)
+        df_train,df_val = create_train_val_csv_shotgun(TrainSet,ValSet,save_dir,N_fm=args.N_fm)
     elif args.DatasetType=='3d':
-        df_train,df_val = create_train_val_csv_3d(TrainSet,ValSet,N_fm=args.N_fm)
+        df_train,df_val = create_train_val_csv_3d(TrainSet,ValSet,save_dir,N_fm=args.N_fm)
     else:
-        df_train,df_val = create_train_val_csv(TrainSet,ValSet)
+        df_train,df_val = create_train_val_csv(TrainSet,ValSet,save_dir)
