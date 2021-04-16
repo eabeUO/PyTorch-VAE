@@ -142,53 +142,54 @@ class VAE3d(BaseVAE):
         z = self.reparameterize(mu, log_var)
         return  [z.detach(), self.decode(z).detach(), input.detach(), mu.detach(), log_var.detach()]
 
-    # def loss_function(self,
-    #                   *args,
-    #                   **kwargs) -> dict:
-    #     """
-    #     Computes the VAE loss function.
-    #     KL(N(\mu, \sigma), N(0, 1)) = \log \frac{1}{\sigma} + \frac{\sigma^2 + \mu^2}{2} - \frac{1}{2}
-    #     :param args:
-    #     :param kwargs:
-    #     :return:
-    #     """
-    #     recons = args[0]
-    #     input = args[1]
-    #     mu = args[2]
-    #     log_var = args[3]
-
-    #     kld_weight = kwargs['M_N'] # Account for the minibatch samples from the dataset
-    #     recons_loss =F.mse_loss(recons, input)  
-
-
-    #     kld_loss = torch.mean(-0.01 * torch.sum(1 + log_var - mu ** 2 - log_var.exp(), dim = 1), dim = 0) # orig = .5
-
-    #     loss = recons_loss + kld_weight * kld_loss
-    #     return {'loss': loss, 'Reconstruction_Loss':recons_loss, 'KLD':-kld_loss}
     def loss_function(self,
                       *args,
                       **kwargs) -> dict:
-        self.num_iter += 1
+        """
+        Computes the VAE loss function.
+        KL(N(\mu, \sigma), N(0, 1)) = \log \frac{1}{\sigma} + \frac{\sigma^2 + \mu^2}{2} - \frac{1}{2}
+        :param args:
+        :param kwargs:
+        :return:
+        """
         recons = args[0]
         input = args[1]
         mu = args[2]
         log_var = args[3]
-        kld_weight = kwargs['M_N']  # Account for the minibatch samples from the dataset
 
-        recons_loss =F.mse_loss(recons, input)
+        kld_weight = kwargs['M_N'] # Account for the minibatch samples from the dataset
+        recons_loss =F.mse_loss(recons, input)  
 
-        kld_loss = torch.mean(-0.5 * torch.sum(1 + log_var - mu ** 2 - log_var.exp(), dim = 1), dim = 0)
 
-        if self.loss_type == 'H': # https://openreview.net/forum?id=Sy2fzU9gl
-            loss = recons_loss + self.beta * kld_weight * kld_loss
-        elif self.loss_type == 'B': # https://arxiv.org/pdf/1804.03599.pdf
-            self.C_max = self.C_max.to(input.device)
-            C = torch.clamp(self.C_max/self.C_stop_iter * self.num_iter, 0, self.C_max.data[0])
-            loss = recons_loss + self.gamma * kld_weight* (kld_loss - C).abs()
-        else:
-            raise ValueError('Undefined loss type.')
+        kld_loss = torch.mean(-0.5 * torch.sum(1 + log_var - mu ** 2 - log_var.exp(), dim = 1), dim = 0) # orig = .5
 
-        return {'loss': loss, 'Reconstruction_Loss':recons_loss, 'KLD':kld_loss}
+        loss = recons_loss + kld_weight * kld_loss
+        return {'loss': loss, 'Reconstruction_Loss':recons_loss, 'KLD':-kld_loss}
+        
+    # def loss_function(self,
+    #                   *args,
+    #                   **kwargs) -> dict:
+    #     self.num_iter += 1
+    #     recons = args[0]
+    #     input = args[1]
+    #     mu = args[2]
+    #     log_var = args[3]
+    #     kld_weight = kwargs['M_N']  # Account for the minibatch samples from the dataset
+
+    #     recons_loss =F.mse_loss(recons, input)
+
+    #     kld_loss = torch.mean(-0.5 * torch.sum(1 + log_var - mu ** 2 - log_var.exp(), dim = 1), dim = 0)
+
+    #     if self.loss_type == 'H': # https://openreview.net/forum?id=Sy2fzU9gl
+    #         loss = recons_loss + self.beta * kld_weight * kld_loss
+    #     elif self.loss_type == 'B': # https://arxiv.org/pdf/1804.03599.pdf
+    #         self.C_max = self.C_max.to(input.device)
+    #         C = torch.clamp(self.C_max/self.C_stop_iter * self.num_iter, 0, self.C_max.data[0])
+    #         loss = recons_loss + self.gamma * kld_weight* (kld_loss - C).abs()
+    #     else:
+    #         raise ValueError('Undefined loss type.')
+
+    #     return {'loss': loss, 'Reconstruction_Loss':recons_loss, 'KLD':kld_loss}
 
     def sample(self,
                num_samples:int,
