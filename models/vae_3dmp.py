@@ -1,8 +1,9 @@
+from numpy.lib.histograms import histogramdd
 import torch
 from models import BaseVAE
 from torch import nn
 from torch.nn import functional as F
-from .types_ import *
+from models.types_ import *
 
 
 class VAE3dmp(BaseVAE):
@@ -23,13 +24,14 @@ class VAE3dmp(BaseVAE):
         self.latent_dim = latent_dim
         self.in_channels = in_channels
         self.depth_dim = depth_dim
+        
         ##### set default input size if not given. #####
         if input_size is None:
             self.input_size = [depth_dim,64,64]
 
         ##### set default hidden dimensions if not given. #####
         if hidden_dims is None:
-            hidden_dims = [16, 32, 64, 128, 256]
+            hidden_dims = [32, 64, 128, 256]
             self.hidden_dims = hidden_dims.copy()
 
         ##### set default kernels size if not given. #####
@@ -56,86 +58,116 @@ class VAE3dmp(BaseVAE):
             self.encoder.add_module(str('conv%i' % layer_n), 
                         nn.Conv3d(in_channels, out_channels=h_dim, 
                                 kernel_size=self.kernels[layer_n], 
-                                stride=(self.tstrides[layer_n], self.xystrides[layer_n], self.xystrides[layer_n]), 
-                                padding=1))
+                                stride=1, #(self.tstrides[layer_n], self.xystrides[layer_n], self.xystrides[layer_n]), 
+                                padding=2))
             self.encoder.add_module(str('batchnorm%i' % layer_n), 
                                     nn.BatchNorm3d(h_dim))
             self.encoder.add_module(str('maxpool%i' % layer_n), 
-                                        nn.MaxPool3d(kernel_size=self.kernels[layer_n], 
+                                        nn.MaxPool3d(kernel_size=2,#self.kernels[layer_n], 
                                         stride=(self.tstrides[layer_n], self.xystrides[layer_n], self.xystrides[layer_n]), 
-                                        padding=1))
+                                        padding=0,return_indices=True))
             self.encoder.add_module(str('relu%i' % layer_n), 
                                         nn.LeakyReLU(0.05))
 
             in_channels = h_dim
 
-        self.fc_mu = nn.Linear(hidden_dims[-1]*4*self.depth_dim, latent_dim)
-        self.fc_var = nn.Linear(hidden_dims[-1]*4*self.depth_dim, latent_dim)
+        self.fc_mu = nn.Linear(hidden_dims[-1]*4*4, latent_dim)
+        self.fc_var = nn.Linear(hidden_dims[-1]*4*4, latent_dim)
 
 
         # Build Decoder
-        self.decoder_input = nn.Linear(latent_dim, hidden_dims[-1]*4*self.depth_dim)
+        self.decoder_input = nn.Linear(latent_dim, hidden_dims[-1]*4*4*self.depth_dim//(2**len(self.hidden_dims)))
 
         hidden_dims.reverse()
         self.decoder = nn.ModuleList()
         for layer_n, i in enumerate(range(len(hidden_dims) - 1)):
+            self.decoder.add_module(str('maxunpool%i' % layer_n),
+                                    nn.MaxUnpool3d(kernel_size=2, #self.kernels[layer_n], 
+                                                stride=(self.tstrides[layer_n], self.xystrides[layer_n], self.xystrides[layer_n]), 
+                                                padding=0))
             self.decoder.add_module(str('convtranspose%i' % layer_n),
                                     nn.ConvTranspose3d(hidden_dims[i],
                                        hidden_dims[i + 1],
                                        kernel_size=self.kernels[layer_n],
-                                       stride = (self.tstrides[layer_n], self.xystrides[layer_n], self.xystrides[layer_n]),
-                                       padding=1,
-                                       output_padding=(self.tstrides[layer_n], self.xystrides[layer_n], self.xystrides[layer_n])))
+                                       stride = 1, #(self.tstrides[layer_n], self.xystrides[layer_n], self.xystrides[layer_n]),
+                                       padding=2))
             self.decoder.add_module(str('batchnorm%i' % layer_n),
                                     nn.BatchNorm3d(hidden_dims[i + 1]))
             self.decoder.add_module(str('relu%i' % layer_n), nn.LeakyReLU(0.05))
 
-            self.decoder.add_module(str('maxunpool%i' % layer_n),
-                                    nn.MaxUnpool3d(kernel_size=self.kernels[layer_n], 
-                                                stride=(self.tstrides[layer_n], self.xystrides[layer_n], self.xystrides[layer_n]), 
-                                                padding=1))
-            
-        self.final_layer = nn.Sequential(
-                            nn.ConvTranspose3d(hidden_dims[-1],
-                                               hidden_dims[-1],
-                                               kernel_size=self.kernels[layer_n],
-                                               stride=(self.tstrides[layer_n], self.xystrides[layer_n], self.xystrides[layer_n]),
-                                               padding=1,
-                                               output_padding=(0,1,1)),
-                            nn.BatchNorm3d(hidden_dims[-1]),
-                            nn.LeakyReLU(),
-                            nn.Conv3d(hidden_dims[-1], out_channels= self.in_channels,
-                                      kernel_size= self.kernels[layer_n], padding=1),
-                            nn.Tanh()) #
+        
+        self.final_layer = nn.ModuleList()
+        self.final_layer.add_module(str('last_maxunpool%i' % 0),
+                                nn.MaxUnpool3d(kernel_size=2, #self.kernels[layer_n], 
+                                                stride=(self.tstrides[0], self.xystrides[0], self.xystrides[0]), 
+                                                padding=0))
+        self.final_layer.add_module(str('last_convtranspose%i' % 0),
+                                nn.ConvTranspose3d(hidden_dims[-1],
+                                    hidden_dims[-1],
+                                    kernel_size=self.kernels[0],
+                                    stride = 1, #(self.tstrides[layer_n], self.xystrides[layer_n], self.xystrides[layer_n]),
+                                    padding=2))
+        self.final_layer.add_module(str('last_batchnorm%i' % layer_n),
+                                    nn.BatchNorm3d(hidden_dims[i + 1]))
+        self.final_layer.add_module(str('last_relu%i' % 0), nn.LeakyReLU(0.05)) 
+        self.final_layer.add_module(str('last_conv%i' % 0),
+                                    nn.Conv3d(hidden_dims[-1], out_channels= self.in_channels,
+                                    kernel_size= self.kernels[0], padding=2))
+        self.final_layer.add_module(str('last_Tanh%i' % 0), nn.Tanh()) 
 
-    def encode(self, input: Tensor) -> List[Tensor]:
+    def encode(self, x: Tensor) -> List[Tensor]:
         """
         Encodes the input by passing through the encoder network
         and returns the latent codes.
         :param input: (Tensor) Input tensor to encoder [N x C x D x H x W]
         :return: (Tensor) List of latent codes
         """
-        result = self.encoder(input)
-        result = torch.flatten(result, start_dim=1)
+        # loop over layers, have to collect pool_idx and output sizes if using max pooling to use
+        # in unpooling
+        pool_idx = []
+        target_output_size = []
+        for layer in self.encoder:
+            if isinstance(layer, nn.MaxPool3d):
+                target_output_size.append(x.size())
+                x, idx = layer(x)
+                pool_idx.append(idx)
+            else:
+                x = layer(x)
+
+        x = torch.flatten(x, start_dim=1)
 
         # Split the result into mu and var components
         # of the latent Gaussian distribution
-        mu = self.fc_mu(result)
-        log_var = self.fc_var(result)
+        mu = self.fc_mu(x)
+        log_var = self.fc_var(x)
 
-        return [mu, log_var]
+        return [mu, log_var, pool_idx, target_output_size]
 
-    def decode(self, z: Tensor) -> Tensor:
+    def decode(self, pool_idx, target_output_size, z: Tensor) -> Tensor:
         """
         Maps the given latent codes
         onto the image space.
         :param z: (Tensor) [B x D]
         :return: (Tensor) [B x C x H x W]
         """
+
         result = self.decoder_input(z)
-        result = result.view(-1, self.hidden_dims[-1], self.depth_dim, 2, 2)
-        result = self.decoder(result)
-        result = self.final_layer(result)
+        result = result.view(-1, self.hidden_dims[-1], self.depth_dim//(2**len(self.hidden_dims)), 4, 4)
+        for name, layer in self.decoder.named_children():
+            if isinstance(layer, nn.MaxUnpool3d):
+                idx = pool_idx.pop(-1)
+                outsize = target_output_size.pop(-1)
+                result = layer(result, idx, outsize)
+            else:
+                result = layer(result)
+
+        for name, layer in self.final_layer.named_children():
+            if isinstance(layer, nn.MaxUnpool3d):
+                idx = pool_idx.pop(-1)
+                outsize = target_output_size.pop(-1)
+                result = layer(result, idx, outsize)
+            else:
+                result = layer(result)
         return result
 
     def reparameterize(self, mu: Tensor, logvar: Tensor) -> Tensor:
@@ -150,15 +182,15 @@ class VAE3dmp(BaseVAE):
         eps = torch.randn_like(std)
         return eps * std + mu
 
-    def forward(self, input: Tensor, **kwargs) -> List[Tensor]:
-        mu, log_var = self.encode(input)
+    def forward(self, inputs: Tensor, **kwargs) -> List[Tensor]:
+        mu, log_var, pool_idx, target_output_size = self.encode(inputs)
         z = self.reparameterize(mu, log_var)
-        return  [self.decode(z), input, mu, log_var]
+        return  [self.decode(pool_idx, target_output_size, z), inputs, mu, log_var]
 
-    def grab_latents(self, input: Tensor, **kwargs) -> List[Tensor]:
-        mu, log_var = self.encode(input)
+    def grab_latents(self, inputs: Tensor, **kwargs) -> List[Tensor]:
+        mu, log_var, pool_idx, target_output_size = self.encode(inputs)
         z = self.reparameterize(mu, log_var)
-        return  [z.detach(), self.decode(z).detach(), input.detach(), mu.detach(), log_var.detach()]
+        return  [z.detach(), self.decode(pool_idx, target_output_size, z).detach(), inputs.detach(), mu.detach(), log_var.detach()]
 
     def loss_function(self,
                       *args,
@@ -171,12 +203,12 @@ class VAE3dmp(BaseVAE):
         :return:
         """
         recons = args[0]
-        input = args[1]
+        inputs = args[1]
         mu = args[2]
         log_var = args[3]
 
         kld_weight = kwargs['M_N'] # Account for the minibatch samples from the dataset
-        recons_loss =F.mse_loss(recons, input)  
+        recons_loss =F.mse_loss(recons, inputs)  
 
 
         kld_loss = torch.mean(-0.5 * torch.sum(1 + log_var - mu ** 2 - log_var.exp(), dim = 1), dim = 0) # orig = .5

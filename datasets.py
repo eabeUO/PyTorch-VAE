@@ -80,7 +80,7 @@ class WC3dDataset(Dataset):
         
         sample=[]
         for n in range(self.N_fm):
-            img_name = eval(self.data_paths['FileName'][idx])[n]
+            img_name = self.data_paths['N_{:02d}'.format(n)].iloc[idx]
             img_path = os.path.join(self.root_dir,self.data_paths.iloc[idx,1],img_name)
             img = pil_loader(img_path)
             if self.transform:
