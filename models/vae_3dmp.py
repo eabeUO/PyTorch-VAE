@@ -190,7 +190,7 @@ class VAE3dmp(BaseVAE):
     def grab_latents(self, inputs: Tensor, **kwargs) -> List[Tensor]:
         mu, log_var, pool_idx, target_output_size = self.encode(inputs)
         z = self.reparameterize(mu, log_var)
-        return  [z.detach(), self.decode(pool_idx, target_output_size, z).detach(), inputs.detach(), mu.detach(), log_var.detach()]
+        return  [z.detach(), self.decode(pool_idx, target_output_size, z).detach(), pool_idx, target_output_size, inputs.detach(), mu.detach(), log_var.detach()]
 
     def loss_function(self,
                       *args,
