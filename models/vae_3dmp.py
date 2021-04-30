@@ -81,11 +81,11 @@ class VAE3dmp(BaseVAE):
         hidden_dims.reverse()
         self.decoder = nn.ModuleList()
         for layer_n, i in enumerate(range(len(hidden_dims) - 1)):
-            self.decoder.add_module(str('maxunpool%i' % layer_n),
-                                    nn.MaxUnpool3d(kernel_size=2, #self.kernels[layer_n], 
-                                                stride=(self.tstrides[layer_n], self.xystrides[layer_n], self.xystrides[layer_n]), 
-                                                padding=0))
-            # self.decoder.add_module(str('upsample%i' % layer_n),nn.Upsample(scale_factor=2, mode='nearest'))
+            # self.decoder.add_module(str('maxunpool%i' % layer_n),
+            #                         nn.MaxUnpool3d(kernel_size=2, #self.kernels[layer_n], 
+            #                                     stride=(self.tstrides[layer_n], self.xystrides[layer_n], self.xystrides[layer_n]), 
+            #                                     padding=0))
+            self.decoder.add_module(str('upsample%i' % layer_n),nn.Upsample(scale_factor=2, mode='nearest'))
 
             self.decoder.add_module(str('convtranspose%i' % layer_n),
                                     nn.ConvTranspose3d(hidden_dims[i],
@@ -99,10 +99,11 @@ class VAE3dmp(BaseVAE):
 
         
         self.final_layer = nn.ModuleList()
-        self.final_layer.add_module(str('last_maxunpool%i' % 0),
-                                nn.MaxUnpool3d(kernel_size=2, #self.kernels[layer_n], 
-                                                stride=(self.tstrides[0], self.xystrides[0], self.xystrides[0]), 
-                                                padding=0))
+        # self.final_layer.add_module(str('last_maxunpool%i' % 0),
+        #                         nn.MaxUnpool3d(kernel_size=2, #self.kernels[layer_n], 
+        #                                         stride=(self.tstrides[0], self.xystrides[0], self.xystrides[0]), 
+        #                                         padding=0))
+        self.final_layer.add_module(str('last_upsample%i' % 0),nn.Upsample(scale_factor=2, mode='nearest'))
         self.final_layer.add_module(str('last_convtranspose%i' % 0),
                                 nn.ConvTranspose3d(hidden_dims[-1],
                                     hidden_dims[-1],
