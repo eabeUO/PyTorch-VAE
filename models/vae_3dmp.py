@@ -1,4 +1,5 @@
 import torch
+import math
 from models import BaseVAE
 from torch import nn
 from torch.nn import functional as F
@@ -28,11 +29,13 @@ class VAE3dmp(BaseVAE):
         
         ##### set default input size if not given. #####
         if input_size is None:
-            self.input_size = [depth_dim,64,64]
+            self.input_size = [in_channels,depth_dim,64,64]
+        else:
+            self.input_size = input_size
 
         ##### set default hidden dimensions if not given. #####
         if hidden_dims is None:
-            hidden_dims = [32, 64, 128, 256]
+            hidden_dims = [16, 32, 64, 128, 256]
             self.hidden_dims = hidden_dims.copy()
 
         ##### set default kernels size if not given. #####
@@ -59,6 +62,34 @@ class VAE3dmp(BaseVAE):
         else:
             self.tstrides = tstrides
 
+        ##### Check encoder shapes for conv and max pool layers #####
+        inshape = self.input_size.copy()
+        self.encoder_shapes = []
+        for i in range(len(hidden_dims)):
+            outshape1 = self.calc_out_dims(inshape,self.hidden_dims[i],ksize=self.kernels[i],stride=1,padding=2)
+            outshape = self.calc_out_dims(outshape1,self.hidden_dims[i],ksize=self.mpkernels[i],stride=(self.tstrides[i],self.xystrides[i],self.xystrides[i]),padding=0)
+            inshape = outshape
+            self.encoder_shapes.append(outshape)
+        
+        assert self.encoder_shapes[-1] == [hidden_dims[-1],1,4,4], 'Encoder Dims do not match!'
+
+        ##### Check decoder shapes for convtranspsoe and upsample layers #####
+        self.decoder_shapes = []
+        hidden_dims2 = hidden_dims.copy()
+        hidden_dims2.reverse()
+        outshape1 = self.encoder_shapes[-1]
+        for i in range(len(hidden_dims2)):
+            outshape = (outshape1[0],outshape1[1]*self.tstrides[i],outshape1[2]*self.xystrides[i],outshape1[3]*self.xystrides[i])
+            if i < len(hidden_dims2)-1:
+                outshape1 = self.calc_out_dims_trans(outshape,hidden_dims2[i],ksize=self.kernels[i],stride=1,padding=2)
+            else:
+                outshape1 = self.calc_out_dims_trans(outshape,hidden_dims2[i],ksize=self.kernels[i],stride=1,padding=2)
+                outshape1 = self.calc_out_dims_trans(outshape1,1,ksize=self.kernels[i],stride=1,padding=2)
+            self.decoder_shapes.append(outshape1)
+        
+        assert self.decoder_shapes[-1] == self.input_size, 'Encoder Dims do not match!'
+
+
         # Build Encoder
         self.encoder = nn.ModuleList()
         for layer_n, h_dim in enumerate(hidden_dims):
@@ -83,7 +114,7 @@ class VAE3dmp(BaseVAE):
 
 
         # Build Decoder
-        self.decoder_input = nn.Linear(latent_dim, hidden_dims[-1]*4*4*self.depth_dim//(2**len(self.hidden_dims)))
+        self.decoder_input = nn.Linear(latent_dim, hidden_dims[-1]*self.encoder_shapes[-1][-1]*self.encoder_shapes[-1][-2]*self.encoder_shapes[-1][-3])
         # self.upsampler = nn.Upsample(scale_factor=2, mode='nearest')
 
         hidden_dims.reverse()
@@ -122,10 +153,43 @@ class VAE3dmp(BaseVAE):
                                     nn.BatchNorm3d(hidden_dims[i + 1]))
         self.final_layer.add_module(str('last_relu%i' % 0), nn.LeakyReLU(0.05)) 
         self.final_layer.add_module(str('last_conv%i' % 0),
-                                    nn.Conv3d(hidden_dims[-1], out_channels= self.in_channels,
+                                    nn.Conv3d(hidden_dims[-1], out_channels=self.in_channels,
                                     kernel_size= self.kernels[0], padding=2))
         self.final_layer.add_module(str('last_Tanh%i' % 0), nn.Tanh()) 
 
+    def calc_out_dims(self,inshape,Cout,dialation=1,ksize=1,stride=1,padding=1):
+        if type(ksize) == int:
+            ksize = (ksize,ksize,ksize)
+        if type(dialation) == int:
+            dialation = (dialation,dialation,dialation)
+        if type(stride) == int:
+            stride = (stride,stride,stride)
+        if type(padding) == int:
+            padding = (padding,padding,padding)
+
+        C,D,H,W = inshape
+        Dout = int(((D + 2*padding[0] - dialation[0]*(ksize[0]-1)-1)/stride[0]) + 1)
+        Hout = int(((H + 2*padding[1] - dialation[1]*(ksize[1]-1)-1)/stride[1]) + 1)
+        Wout = int(((W + 2*padding[2] - dialation[2]*(ksize[2]-1)-1)/stride[2]) + 1)
+        return [Cout,Dout,Hout,Wout]
+
+    def calc_out_dims_trans(self,inshape,Cout,dialation=1,ksize=1,stride=1,padding=1,output_padding=0):
+        if type(ksize) == int:
+            ksize = (ksize,ksize,ksize)
+        if type(dialation) == int:
+            dialation = (dialation,dialation,dialation)
+        if type(stride) == int:
+            stride = (stride,stride,stride)
+        if type(padding) == int:
+            padding = (padding,padding,padding)
+        if type(output_padding) == int:
+            output_padding = (output_padding,output_padding,output_padding)
+
+        C,D,H,W = inshape
+        Dout = int((((D - 1)*stride[0] - 2*padding[0] + dialation[0]*(ksize[0]-1) + output_padding[0])) + 1)
+        Hout = int((((H - 1)*stride[1] - 2*padding[1] + dialation[1]*(ksize[1]-1) + output_padding[1])) + 1)
+        Wout = int((((W - 1)*stride[2] - 2*padding[2] + dialation[2]*(ksize[2]-1) + output_padding[2])) + 1)
+        return [Cout,Dout,Hout,Wout]
 
     def encode(self, x: Tensor) -> List[Tensor]:
         """
@@ -164,7 +228,7 @@ class VAE3dmp(BaseVAE):
         """
 
         result = self.decoder_input(z)
-        result = result.view(-1, self.hidden_dims[-1], self.depth_dim//(2**len(self.hidden_dims)), 4, 4)
+        result = result.view(-1,self.encoder_shapes[-1][0],self.encoder_shapes[-1][1],self.encoder_shapes[-1][2],self.encoder_shapes[-1][3])
         for name, layer in self.decoder.named_children():
             if isinstance(layer, nn.MaxUnpool3d):
                 idx = pool_idx.pop(-1)
