@@ -5,6 +5,7 @@ from torch.nn import functional as F
 from models.types_ import *
 
 
+
 class VAE3dmp(BaseVAE):
     num_iter = 0 # Global static variable to keep track of iterations
 
@@ -13,6 +14,7 @@ class VAE3dmp(BaseVAE):
                  latent_dim: int,
                  depth_dim: int,
                  kernels: List = None,
+                 mpkernels: List = None,
                  xystrides: List = None,
                  tstrides: List = None,
                  input_size: List = None,
@@ -39,6 +41,12 @@ class VAE3dmp(BaseVAE):
         else:
             self.kernels = kernels
 
+        ##### set default kernels size if not given. #####
+        if mpkernels is None:
+            self.mpkernels = [5 for _ in range(len(hidden_dims))]
+        else:
+            self.mpkernels = mpkernels
+
         ##### set default xystride size if not given. #####
         if xystrides is None:
             self.xystrides = [2 for _ in range(len(hidden_dims))]
@@ -62,7 +70,7 @@ class VAE3dmp(BaseVAE):
             self.encoder.add_module(str('batchnorm%i' % layer_n), 
                                     nn.BatchNorm3d(h_dim))
             self.encoder.add_module(str('maxpool%i' % layer_n), 
-                                        nn.MaxPool3d(kernel_size=2,#self.kernels[layer_n], 
+                                        nn.MaxPool3d(kernel_size=self.mpkernels[layer_n], 
                                         stride=(self.tstrides[layer_n], self.xystrides[layer_n], self.xystrides[layer_n]), 
                                         padding=0,return_indices=True))
             self.encoder.add_module(str('relu%i' % layer_n), 
@@ -76,7 +84,7 @@ class VAE3dmp(BaseVAE):
 
         # Build Decoder
         self.decoder_input = nn.Linear(latent_dim, hidden_dims[-1]*4*4*self.depth_dim//(2**len(self.hidden_dims)))
-        self.upsampler = nn.Upsample(scale_factor=2, mode='nearest')
+        # self.upsampler = nn.Upsample(scale_factor=2, mode='nearest')
 
         hidden_dims.reverse()
         self.decoder = nn.ModuleList()
@@ -85,7 +93,7 @@ class VAE3dmp(BaseVAE):
             #                         nn.MaxUnpool3d(kernel_size=2, #self.kernels[layer_n], 
             #                                     stride=(self.tstrides[layer_n], self.xystrides[layer_n], self.xystrides[layer_n]), 
             #                                     padding=0))
-            self.decoder.add_module(str('upsample%i' % layer_n),nn.Upsample(scale_factor=2, mode='nearest'))
+            self.decoder.add_module(str('upsample%i' % layer_n),nn.Upsample(scale_factor=(self.tstrides[layer_n], self.xystrides[layer_n], self.xystrides[layer_n]), mode='nearest'))
 
             self.decoder.add_module(str('convtranspose%i' % layer_n),
                                     nn.ConvTranspose3d(hidden_dims[i],
@@ -103,7 +111,7 @@ class VAE3dmp(BaseVAE):
         #                         nn.MaxUnpool3d(kernel_size=2, #self.kernels[layer_n], 
         #                                         stride=(self.tstrides[0], self.xystrides[0], self.xystrides[0]), 
         #                                         padding=0))
-        self.final_layer.add_module(str('last_upsample%i' % 0),nn.Upsample(scale_factor=2, mode='nearest'))
+        self.final_layer.add_module(str('last_upsample%i' % 0),nn.Upsample(scale_factor=(self.tstrides[-1], self.xystrides[-1], self.xystrides[-1]), mode='nearest'))
         self.final_layer.add_module(str('last_convtranspose%i' % 0),
                                 nn.ConvTranspose3d(hidden_dims[-1],
                                     hidden_dims[-1],
@@ -117,6 +125,7 @@ class VAE3dmp(BaseVAE):
                                     nn.Conv3d(hidden_dims[-1], out_channels= self.in_channels,
                                     kernel_size= self.kernels[0], padding=2))
         self.final_layer.add_module(str('last_Tanh%i' % 0), nn.Tanh()) 
+
 
     def encode(self, x: Tensor) -> List[Tensor]:
         """

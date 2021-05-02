@@ -3,17 +3,18 @@ model_params:
   in_channels: 1
   latent_dim: 128
   depth_dim: 16
-  xystrides: [2,2,2,2]
-  tstrides: [2,2,2,1]
-  kernels: [5,5,5,5]
+  xystrides: [2,2,2,2,2]
+  tstrides: [2,2,2,1,1]
+  kernels: [5,5,5,5,5]
+  mpkernels: [2,2,2,2,1]
 
 exp_params:
   dataset: WorldCam3D
   data_path: "/home/seuss/Research/FMEphys/data/"
   csv_path_train: "/home/seuss/Research/FMEphys/WC3d_Train_Data.csv"
   csv_path_val: "/home/seuss/Research/FMEphys/WC3d_Val_Data.csv"
-  imgH_size: 64
-  imgW_size: 64
+  imgH_size: 128
+  imgW_size: 128
   batch_size: 256 # 
   LR: 0.001
   weight_decay: 0.0
@@ -26,5 +27,5 @@ trainer_params:
 
 logging_params:
   save_dir: "/home/seuss/Research/FMEphys/logs2/"
-  name: "VAE3dmp"
+  name: "VAE3dmp_testing"
   manual_seed: 1265
