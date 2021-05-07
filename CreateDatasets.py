@@ -159,7 +159,7 @@ def create_train_val_csv_3d(TrainSet,ValSet,save_dir,N_fm=4):
         colNames =  ['N_{:02d}'.format(n) for n in range(N_fm)]
         df_train.columns = colNames
         df_train.insert(0, 'BasePath', ExpDir)
-        df_train.to_csv(os.path.join(save_dir,'WC3d_Train_Data.csv'))
+        df_train.to_csv(os.path.join(save_dir,'WC3d_Train_Data_SingVid.csv'))
 
     print('Total Training Size: ', len(df_train))
 
@@ -182,7 +182,7 @@ def create_train_val_csv_3d(TrainSet,ValSet,save_dir,N_fm=4):
         colNames =  ['N_{:02d}'.format(n) for n in range(N_fm)]
         df_val.columns = colNames
         df_val.insert(0, 'BasePath', ExpDir)
-        df_val.to_csv(os.path.join(save_dir,'WC3d_Val_Data.csv'))
+        df_val.to_csv(os.path.join(save_dir,'WC3d_Val_Data_SingVid.csv'))
 
     print('Total Validation Size: ', len(df_val))
     return df_train, df_val
@@ -197,6 +197,7 @@ if __name__ == '__main__':
     valnum = np.random.randint(len(TrainSet))
     ValSet = [TrainSet[2]]
     TrainSet.remove(TrainSet[2])
+    TrainSet = [TrainSet[-2]]
     # TrainSet = sorted([os.path.basename(x) for x in glob.glob(join('*WORLD'))])
     # valnum = np.random.randint(len(TrainSet))
     # ValSet = [TrainSet[valnum]]

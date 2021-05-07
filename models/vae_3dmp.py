@@ -208,7 +208,7 @@ class VAE3dmp(BaseVAE):
                 x, idx = layer(x)
                 pool_idx.append(idx)
             else:
-                x = layer(x)
+                x = layer(x.contiguous())
 
         x = torch.flatten(x, start_dim=1)
 

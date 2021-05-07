@@ -1,6 +1,7 @@
 import yaml
 import argparse
 import numpy as np
+import os
 
 from models import *
 from experiment import VAEXperiment
@@ -30,6 +31,13 @@ tt_logger = TestTubeLogger(
     debug=False,
     create_git_tag=False,
 )
+##### Save parameters fro every experiment #####
+savefile = os.path.join(config['logging_params'],'VAE3dmp',f'version_{tt_logger.version}',os.path.basename(args.filename))
+with open(savefile,'w') as file: 
+    try:
+        yaml.dump(config, file)
+    except yaml.YAMLError as exc:
+        print(exc)
 
 # For reproducibility
 torch.manual_seed(config['logging_params']['manual_seed'])
