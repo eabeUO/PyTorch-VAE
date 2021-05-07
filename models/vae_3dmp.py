@@ -37,6 +37,8 @@ class VAE3dmp(BaseVAE):
         if hidden_dims is None:
             hidden_dims = [16, 32, 64, 128, 256]
             self.hidden_dims = hidden_dims.copy()
+        else:
+            self.hidden_dims = hidden_dims.copy()
 
         ##### set default kernels size if not given. #####
         if kernels is None:
@@ -71,7 +73,7 @@ class VAE3dmp(BaseVAE):
             inshape = outshape
             self.encoder_shapes.append(outshape)
         
-        assert self.encoder_shapes[-1] == [hidden_dims[-1],1,4,4], 'Encoder Dims do not match!'
+        assert self.encoder_shapes[-1] == [hidden_dims[-1],1,4,4], f'Encoder Dims do not match! {self.encoder_shapes}'
 
         ##### Check decoder shapes for convtranspsoe and upsample layers #####
         self.decoder_shapes = []
@@ -87,7 +89,7 @@ class VAE3dmp(BaseVAE):
                 outshape1 = self.calc_out_dims_trans(outshape1,1,ksize=self.kernels[i],stride=1,padding=2)
             self.decoder_shapes.append(outshape1)
         
-        assert self.decoder_shapes[-1] == self.input_size, 'Encoder Dims do not match!'
+        assert self.decoder_shapes[-1] == self.input_size, f'Decoder Dims do not match! {self.decoder_shapes}'
 
 
         # Build Encoder
@@ -267,7 +269,7 @@ class VAE3dmp(BaseVAE):
         mu, log_var, pool_idx, target_output_size = self.encode(inputs)
         pool_idx2, target_output_size2 = pool_idx.copy(), target_output_size.copy()
         z = self.reparameterize(mu, log_var)
-        return  [z.detach(), self.decode(pool_idx, target_output_size, z).detach(), pool_idx2, target_output_size2, inputs.detach(), mu.detach(), log_var.detach()]
+        return  [z, self.generate_from_latents(z), inputs.detach(), mu.detach(), log_var.detach()]
 
     def loss_function(self,
                       *args,
@@ -323,11 +325,17 @@ class VAE3dmp(BaseVAE):
                 result = layer(result)
         return result
 
-    def generate(self, x: Tensor, **kwargs) -> Tensor:
+    def generate_from_latents(self, z: Tensor, **kwargs) -> Tensor:
         """
-        Given an input image x, returns the reconstructed image
-        :param x: (Tensor) [B x C x H x W]
+        Given an input latent z, returns the reconstructed image
+        :param x: (Tensor) [B x latent_dim]
         :return: (Tensor) [B x C x H x W]
         """
+        result = self.decoder_input(z)
+        result = result.view(-1,self.encoder_shapes[-1][0],self.encoder_shapes[-1][1],self.encoder_shapes[-1][2],self.encoder_shapes[-1][3])
+        for name, layer in self.decoder.named_children():
+            result = layer(result)
 
-        return self.forward(x)[0]
+        for name, layer in self.final_layer.named_children():
+                result = layer(result)
+        return result
