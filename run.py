@@ -31,8 +31,9 @@ tt_logger = TestTubeLogger(
     debug=False,
     create_git_tag=False,
 )
+
 ##### Save parameters fro every experiment #####
-savefile = os.path.join(config['logging_params'],'VAE3dmp',f'version_{tt_logger.version}',os.path.basename(args.filename))
+savefile = os.path.join(config['logging_params']['save_dir'],'VAE3dmp',f'version_{tt_logger.version}',os.path.basename(args.filename))
 with open(savefile,'w') as file: 
     try:
         yaml.dump(config, file)
