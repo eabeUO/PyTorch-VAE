@@ -2,6 +2,7 @@ import yaml
 import argparse
 import numpy as np
 import os
+import glob 
 
 from models import *
 from experiment import VAEXperiment
@@ -32,14 +33,6 @@ tt_logger = TestTubeLogger(
     create_git_tag=False,
 )
 
-##### Save parameters fro every experiment #####
-savefile = os.path.join(config['logging_params']['save_dir'],'VAE3dmp',f'version_{tt_logger.version}',os.path.basename(args.filename))
-with open(savefile,'w') as file: 
-    try:
-        yaml.dump(config, file)
-    except yaml.YAMLError as exc:
-        print(exc)
-
 # For reproducibility
 torch.manual_seed(config['logging_params']['manual_seed'])
 np.random.seed(config['logging_params']['manual_seed'])
@@ -52,13 +45,34 @@ experiment = VAEXperiment(model,
 
 runner = Trainer(weights_save_path=f"{tt_logger.save_dir}",
                  min_epochs=1,
+                 precision=16,
                  logger=tt_logger,
                  log_every_n_steps=100,
                  limit_train_batches=1.,
                  val_check_interval=1.,
                  num_sanity_val_steps=0,
-                 log_gpu_memory='min_max',
+                 stochastic_weight_avg=True,
+                #  log_gpu_memory='min_max',
                  **config['trainer_params'])
 
 print(f"======= Training {config['model_params']['name']} =======")
-runner.fit(experiment)
+try: 
+    runner.fit(experiment)
+    versions = glob.glob(os.path.join(config['logging_params']['save_dir'],config['logging_params']['name'],'version_*'))
+    ##### Save parameters from every experiment #####
+    savefile = os.path.join(config['logging_params']['save_dir'],config['logging_params']['name'],f'version_{len(versions)}',os.path.basename(args.filename))
+    with open(savefile,'w') as file: 
+        try:
+            yaml.dump(config, file)
+        except yaml.YAMLError as exc:
+            print(exc)
+except KeyboardInterrupt:
+    ##### Save parameters from every experiment #####
+    versions = glob.glob(os.path.join(config['logging_params']['save_dir'],config['logging_params']['name'],'version_*'))
+    savefile = os.path.join(config['logging_params']['save_dir'],config['logging_params']['name'],f'version_{tt_logger.version}',os.path.basename(args.filename))
+    with open(savefile,'w') as file: 
+        try:
+            yaml.dump(config, file)
+        except yaml.YAMLError as exc:
+            print(exc)
+    print('Saved Parameters')

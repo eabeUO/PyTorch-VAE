@@ -210,7 +210,7 @@ class VAE3dmp(BaseVAE):
                 x, idx = layer(x)
                 pool_idx.append(idx)
             else:
-                x = layer(x.contiguous())
+                x = layer(x)
 
         x = torch.flatten(x, start_dim=1)
 
@@ -339,3 +339,12 @@ class VAE3dmp(BaseVAE):
         for name, layer in self.final_layer.named_children():
                 result = layer(result)
         return result
+
+    def generate(self, x: Tensor, **kwargs) -> Tensor:
+        """
+        Given an input image x, returns the reconstructed image
+        :param x: (Tensor) [B x C x H x W]
+        :return: (Tensor) [B x C x H x W]
+        """
+
+        return self.forward(x)[0]
