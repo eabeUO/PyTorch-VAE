@@ -87,4 +87,30 @@ class WC3dDataset(Dataset):
                 img = self.transform(img)
             sample.append(img)
         sample = torch.cat(sample,dim=0).unsqueeze(0) # To put into B x C x D x H x W format
+        return 
+        
+class WCRNNDataset(Dataset):
+    def __init__(self, csv_file, N_fm, root_dir, transform=None):
+        
+        self.data_paths = pd.read_csv(csv_file)
+        self.root_dir = root_dir
+        self.transform = transform
+        self.N_fm = N_fm
+
+    def __len__(self):
+        return(len(self.data_paths))
+    
+    def __getitem__(self,idx):
+        if torch.is_tensor(idx):
+            idx = idx.tolist()
+        
+        sample=[]
+        for n in range(self.N_fm):
+            img_name = self.data_paths['N_{:02d}'.format(n)].iloc[idx]
+            img_path = os.path.join(self.root_dir,self.data_paths.iloc[idx,1],img_name)
+            img = pil_loader(img_path)
+            if self.transform:
+                img = self.transform(img)
+            sample.append(img)
+        sample = torch.cat(sample,dim=0).unsqueeze(1) # To put into B x C x D x H x W format
         return sample

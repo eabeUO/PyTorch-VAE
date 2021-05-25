@@ -1,24 +1,24 @@
 model_params:
-  name: 'VAE3dmp'
+  name: 'VAE_rnn'
   in_channels: 1
   latent_dim: 128
   depth_dim: 16
   xystrides: [2,2,2,2]
-  tstrides: [2,2,2,2]
+  tstrides: [1,1,1,1]
   kernels: [5,5,5,5]
   mpkernels: [2,2,2,2]
   input_size: [1,16,64,64]
-  hidden_dims: [64, 128, 256, 512]
+  hidden_dims: [32, 64, 128, 256]
 
 exp_params:
-  dataset: WorldCam3D
+  dataset: WorldCamRNN
   data_path: "/home/seuss/Research/FMEphys/data/"
   csv_path_train: "/home/seuss/Research/FMEphys/WC3d_Train_Data_SingVid.csv"
   csv_path_val: "/home/seuss/Research/FMEphys/WC3d_Val_Data_SingVid.csv"
   imgH_size: 64
   imgW_size: 64
-  batch_size: 512 # 
-  LR: 0.001
+  batch_size: 64 # 
+  LR: 0.0001
   weight_decay: 0.001
   scheduler_gamma: 1
   N_fm: 16
@@ -29,5 +29,5 @@ trainer_params:
 
 logging_params:
   save_dir: "/home/seuss/Research/FMEphys/logs2/"
-  name: "VAE3dmp_beta"
+  name: "VAE_rnn"
   manual_seed: 1265

@@ -16,7 +16,7 @@ parser.add_argument('--config',  '-c',
                     dest="filename",
                     metavar='FILE',
                     help =  'path to the config file',
-                    default='configs/WC_vae3dmp.yaml')
+                    default='configs/WC_vaeRNN.yaml')
 
 args = parser.parse_args()
 with open(args.filename, 'r') as file:
@@ -51,7 +51,7 @@ runner = Trainer(weights_save_path=f"{tt_logger.save_dir}",
                  limit_train_batches=1.,
                  val_check_interval=1.,
                  num_sanity_val_steps=0,
-                 stochastic_weight_avg=True,
+                #  stochastic_weight_avg=True,
                 #  log_gpu_memory='min_max',
                  **config['trainer_params'])
 
@@ -60,7 +60,7 @@ try:
     runner.fit(experiment)
     versions = glob.glob(os.path.join(config['logging_params']['save_dir'],config['logging_params']['name'],'version_*'))
     ##### Save parameters from every experiment #####
-    savefile = os.path.join(config['logging_params']['save_dir'],config['logging_params']['name'],f'version_{len(versions)}',os.path.basename(args.filename))
+    savefile = os.path.join(config['logging_params']['save_dir'],config['logging_params']['name'],f'version_{len(versions)-1}',os.path.basename(args.filename))
     with open(savefile,'w') as file: 
         try:
             yaml.dump(config, file)
@@ -69,10 +69,12 @@ try:
 except KeyboardInterrupt:
     ##### Save parameters from every experiment #####
     versions = glob.glob(os.path.join(config['logging_params']['save_dir'],config['logging_params']['name'],'version_*'))
-    savefile = os.path.join(config['logging_params']['save_dir'],config['logging_params']['name'],f'version_{tt_logger.version}',os.path.basename(args.filename))
+    savefile = os.path.join(config['logging_params']['save_dir'],config['logging_params']['name'],f'version_{len(versions)-1}',os.path.basename(args.filename))
     with open(savefile,'w') as file: 
         try:
             yaml.dump(config, file)
         except yaml.YAMLError as exc:
             print(exc)
     print('Saved Parameters')
+except Exception as e:
+    print(e)

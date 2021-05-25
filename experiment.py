@@ -9,7 +9,7 @@ from torchvision import transforms
 import torchvision.utils as vutils
 from torchvision.datasets import CelebA
 from torch.utils.data import DataLoader
-from datasets import WCDataset, WCShotgunDataset, WC3dDataset
+from datasets import WCDataset, WCShotgunDataset, WC3dDataset, WCRNNDataset
 
 class VAEXperiment(pl.LightningModule):
 
@@ -72,6 +72,8 @@ class VAEXperiment(pl.LightningModule):
             self.logger.experiment.add_image('recons',vutils.make_grid(recons.data[:100,:1],nrow=10,normalize=True),self.current_epoch)
         elif self.params['dataset'] == 'WorldCam3D':
             self.logger.experiment.add_image('recons',vutils.make_grid(recons.data[:100,:1,0],nrow=10,normalize=True),self.current_epoch)
+        elif self.params['dataset'] == 'WorldCamRNN':
+            self.logger.experiment.add_image('recons',vutils.make_grid(recons.data[:100,:1,0],nrow=10,normalize=True),self.current_epoch)
         else:
             self.logger.experiment.add_image('recons',vutils.make_grid(recons.data[:100],nrow=10,normalize=True),self.current_epoch)
         # vutils.save_image(recons.data[:100],
@@ -91,6 +93,8 @@ class VAEXperiment(pl.LightningModule):
             if self.params['dataset'] == 'WorldCamShotgun':
                 self.logger.experiment.add_image('samples',vutils.make_grid(samples[:,:1],nrow=10,normalize=True),self.current_epoch)
             elif self.params['dataset'] == 'WorldCam3D':
+                self.logger.experiment.add_image('samples',vutils.make_grid(samples[:,:1,0],nrow=10,normalize=True),self.current_epoch)
+            elif self.params['dataset'] == 'WorldCamRNN':
                 self.logger.experiment.add_image('samples',vutils.make_grid(samples[:,:1,0],nrow=10,normalize=True),self.current_epoch)
             else:
                 self.logger.experiment.add_image('samples',vutils.make_grid(samples,nrow=10,normalize=True),self.current_epoch)
@@ -126,15 +130,20 @@ class VAEXperiment(pl.LightningModule):
 
         try:
             if self.params['scheduler_gamma'] is not None:
+                # scheduler = optim.lr_scheduler.CosineAnnealingLR(optims[0],
+                #                                                  T_max=self.params['scheduler_gamma'],
+                #                                                  )
                 scheduler = optim.lr_scheduler.ExponentialLR(optims[0],
-                                                             gamma = self.params['scheduler_gamma'])
+                                                             gamma = self.params['scheduler_gamma'],
+                                                             interval='epoch')
                 scheds.append(scheduler)
 
                 # Check if another scheduler is required for the second optimizer
                 try:
                     if self.params['scheduler_gamma_2'] is not None:
                         scheduler2 = optim.lr_scheduler.ExponentialLR(optims[1],
-                                                                      gamma = self.params['scheduler_gamma_2'])
+                                                                      gamma = self.params['scheduler_gamma_2'],
+                                                                      interval='epoch')
                         scheds.append(scheduler2)
                 except:
                     pass
@@ -162,6 +171,11 @@ class VAEXperiment(pl.LightningModule):
                                 transform=transform)
         elif self.params['dataset'] == 'WorldCam3D':
             dataset = WC3dDataset(root_dir = self.params['data_path'],
+                                N_fm = self.params['N_fm'],
+                                csv_file = self.params['csv_path_train'],
+                                transform=transform)
+        elif self.params['dataset'] == 'WorldCamRNN':
+            dataset = WCRNNDataset(root_dir = self.params['data_path'],
                                 N_fm = self.params['N_fm'],
                                 csv_file = self.params['csv_path_train'],
                                 transform=transform)
@@ -220,6 +234,16 @@ class VAEXperiment(pl.LightningModule):
                                                 drop_last=True,
                                                 num_workers=16)
             self.num_val_imgs = len(self.sample_dataloader)
+        elif self.params['dataset'] == 'WorldCamRNN':
+            self.sample_dataloader = DataLoader(WCRNNDataset(root_dir = self.params['data_path'],
+                                                                 N_fm = self.params['N_fm'],
+                                                                 csv_file = self.params['csv_path_val'],
+                                                                 transform=transform),
+                                                batch_size=self.params['batch_size'],
+                                                shuffle = False,
+                                                drop_last=True,
+                                                num_workers=16)
+            self.num_val_imgs = len(self.sample_dataloader)
         else:
             raise ValueError('Undefined dataset type')
 
@@ -256,6 +280,13 @@ class VAEXperiment(pl.LightningModule):
                                 SetRange])
         elif self.params['dataset'] == 'WorldCam3D':
             transform = transforms.Compose([
+                                transforms.Grayscale(num_output_channels=1),
+                                # transforms.RandomHorizontalFlip(),
+                                transforms.Resize((self.params['imgH_size'],self.params['imgW_size'])),
+                                transforms.ToTensor(),
+                                SetRange])
+        elif self.params['dataset'] == 'WorldCamRNN':
+           transform = transforms.Compose([
                                 transforms.Grayscale(num_output_channels=1),
                                 # transforms.RandomHorizontalFlip(),
                                 transforms.Resize((self.params['imgH_size'],self.params['imgW_size'])),

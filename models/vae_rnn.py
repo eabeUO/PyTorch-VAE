@@ -4,10 +4,10 @@ from models import BaseVAE
 from torch import nn
 from torch.nn import functional as F
 from models.types_ import *
+from ConvLSTM import ConvLSTM
 
 
-
-class VAE3dmp(BaseVAE):
+class VAE_rnn(BaseVAE):
     num_iter = 0 # Global static variable to keep track of iterations
 
     def __init__(self,
@@ -21,7 +21,7 @@ class VAE3dmp(BaseVAE):
                  input_size: List = None,
                  hidden_dims: List = None,
                  **kwargs) -> None:
-        super(VAE3dmp, self).__init__()
+        super(VAE_rnn, self).__init__()
 
         self.latent_dim = latent_dim
         self.in_channels = in_channels
@@ -73,7 +73,7 @@ class VAE3dmp(BaseVAE):
             inshape = outshape
             self.encoder_shapes.append(outshape)
         
-        assert self.encoder_shapes[-1] == [hidden_dims[-1],1,4,4], f'Encoder Dims do not match! {self.encoder_shapes}'
+        assert self.encoder_shapes[-1] == [hidden_dims[-1],depth_dim,4,4], f'Encoder Dims do not match! {self.encoder_shapes}'
 
         ##### Check decoder shapes for convtranspsoe and upsample layers #####
         self.decoder_shapes = []
@@ -90,68 +90,64 @@ class VAE3dmp(BaseVAE):
             self.decoder_shapes.append(outshape1)
         
         assert self.decoder_shapes[-1] == self.input_size, f'Decoder Dims do not match! {self.decoder_shapes}'
-
-
+        
         # Build Encoder
         self.encoder = nn.ModuleList()
-        for layer_n, h_dim in enumerate(hidden_dims):
-            self.encoder.add_module(str('conv%i' % layer_n), 
-                        nn.Conv3d(in_channels, out_channels=h_dim, 
-                                kernel_size=self.kernels[layer_n], 
-                                stride=1, #(self.tstrides[layer_n], self.xystrides[layer_n], self.xystrides[layer_n]), 
-                                padding=2))
+        for layer_n, h_dim in enumerate(self.hidden_dims):
+            self.encoder.add_module(str('ConvLSTM{}'.format(layer_n)),ConvLSTM(input_dim = in_channels,
+                                                                        hidden_dim = [h_dim],
+                                                                        kernel_size= (self.kernels[layer_n],self.kernels[layer_n]),
+                                                                        num_layers = 1,
+                                                                        batch_first=True,
+                                                                        use_transpose=False,
+                                                                        ))
+
             self.encoder.add_module(str('batchnorm%i' % layer_n), 
-                                    nn.BatchNorm3d(h_dim))
+                                        nn.BatchNorm3d(h_dim))
             self.encoder.add_module(str('maxpool%i' % layer_n), 
-                                        nn.MaxPool3d(kernel_size=self.mpkernels[layer_n], 
-                                        stride=(self.tstrides[layer_n], self.xystrides[layer_n], self.xystrides[layer_n]), 
-                                        padding=0,return_indices=True))
+                                        nn.MaxPool2d(kernel_size=self.mpkernels[layer_n], 
+                                        stride=(self.xystrides[layer_n], self.xystrides[layer_n]), 
+                                        padding=0,return_indices=False))
             self.encoder.add_module(str('relu%i' % layer_n), 
                                         nn.LeakyReLU(0.05))
-
             in_channels = h_dim
-
-        self.fc_mu = nn.Linear(hidden_dims[-1]*4*4, latent_dim)
-        self.fc_var = nn.Linear(hidden_dims[-1]*4*4, latent_dim)
-
-
+        self.fc_mu = nn.Linear(self.hidden_dims[-1]*self.depth_dim*4*4, self.latent_dim)
+        self.fc_var = nn.Linear(self.hidden_dims[-1]*self.depth_dim*4*4, self.latent_dim)
+        
         # Build Decoder
-        self.decoder_input = nn.Linear(latent_dim, hidden_dims[-1]*self.encoder_shapes[-1][-1]*self.encoder_shapes[-1][-2]*self.encoder_shapes[-1][-3])
+        self.decoder_input = nn.Linear(self.latent_dim, self.hidden_dims[-1]*self.encoder_shapes[-1][-1]*self.encoder_shapes[-1][-2]*self.encoder_shapes[-1][-3])
 
         hidden_dims.reverse()
         self.decoder = nn.ModuleList()
         for layer_n, i in enumerate(range(len(hidden_dims) - 1)):
-            self.decoder.add_module(str('upsample%i' % layer_n),nn.Upsample(scale_factor=(self.tstrides[layer_n], self.xystrides[layer_n], self.xystrides[layer_n]), mode='nearest'))
+            self.decoder.add_module(str('ConvLSTM{}_transpose'.format(layer_n)), ConvLSTM(input_dim  = hidden_dims[i],
+                                                                                    hidden_dim  = hidden_dims[i+1],
+                                                                                    kernel_size = (self.kernels[layer_n],self.kernels[layer_n]),
+                                                                                    num_layers  = 1,
+                                                                                    batch_first = True,
+                                                                                    use_transpose = True,
+                                                                                ))
+            self.decoder.add_module(str('upsample%i' % i),nn.Upsample(scale_factor=(1, self.xystrides[-1], self.xystrides[-1]), mode='nearest'))
 
-            self.decoder.add_module(str('convtranspose%i' % layer_n),
-                                    nn.ConvTranspose3d(hidden_dims[i],
-                                       hidden_dims[i + 1],
-                                       kernel_size=self.kernels[layer_n],
-                                       stride = 1, #(self.tstrides[layer_n], self.xystrides[layer_n], self.xystrides[layer_n]),
-                                       padding=2))
             self.decoder.add_module(str('batchnorm%i' % layer_n),
                                     nn.BatchNorm3d(hidden_dims[i + 1]))
             self.decoder.add_module(str('relu%i' % layer_n), nn.LeakyReLU(0.05))
 
-        
+
         self.final_layer = nn.ModuleList()
-        # self.final_layer.add_module(str('last_maxunpool%i' % 0),
-        #                         nn.MaxUnpool3d(kernel_size=2, #self.kernels[layer_n], 
-        #                                         stride=(self.tstrides[0], self.xystrides[0], self.xystrides[0]), 
-        #                                         padding=0))
-        self.final_layer.add_module(str('last_upsample%i' % 0),nn.Upsample(scale_factor=(self.tstrides[-1], self.xystrides[-1], self.xystrides[-1]), mode='nearest'))
-        self.final_layer.add_module(str('last_convtranspose%i' % 0),
-                                nn.ConvTranspose3d(hidden_dims[-1],
-                                    hidden_dims[-1],
-                                    kernel_size=self.kernels[0],
-                                    stride = 1, #(self.tstrides[layer_n], self.xystrides[layer_n], self.xystrides[layer_n]),
-                                    padding=2))
-        self.final_layer.add_module(str('last_batchnorm%i' % layer_n),
-                                    nn.BatchNorm3d(hidden_dims[i + 1]))
-        self.final_layer.add_module(str('last_relu%i' % 0), nn.LeakyReLU(0.05)) 
-        self.final_layer.add_module(str('last_conv%i' % 0),
-                                    nn.Conv3d(hidden_dims[-1], out_channels=self.in_channels,
-                                    kernel_size= self.kernels[0], padding=2))
+        self.final_layer.add_module(str('ConvLSTM{}_transpose'.format(layer_n)), ConvLSTM(input_dim   = hidden_dims[-1],
+                                                                                            hidden_dim  = hidden_dims[-1],
+                                                                                            kernel_size = (self.kernels[-1],self.kernels[-1]),
+                                                                                            num_layers  = 1,
+                                                                                            batch_first = True,
+                                                                                            use_transpose = True,
+                                                                                        ))
+        self.final_layer.add_module(str('upsample%i' % i),nn.Upsample(scale_factor=(1, self.xystrides[-1], self.xystrides[-1]), mode='nearest'))
+
+        self.final_layer.add_module(str('batchnorm%i' % layer_n), nn.BatchNorm3d(hidden_dims[-1]))
+        self.final_layer.add_module(str('relu%i' % layer_n), nn.LeakyReLU(0.05))
+        self.final_layer.add_module(str('last_conv%i' % 0), nn.Conv3d(hidden_dims[-1], out_channels=self.in_channels,
+                                                                    kernel_size= self.kernels[0], padding=2))
         self.final_layer.add_module(str('last_Tanh%i' % 0), nn.Tanh()) 
 
     def calc_out_dims(self,inshape,Cout,dialation=1,ksize=1,stride=1,padding=1):
@@ -165,10 +161,10 @@ class VAE3dmp(BaseVAE):
             padding = (padding,padding,padding)
 
         C,D,H,W = inshape
-        Dout = int(((D + 2*padding[0] - dialation[0]*(ksize[0]-1)-1)/stride[0]) + 1)
+        # Dout = int(((D + 2*padding[0] - dialation[0]*(ksize[0]-1)-1)/stride[0]) + 1)
         Hout = int(((H + 2*padding[1] - dialation[1]*(ksize[1]-1)-1)/stride[1]) + 1)
         Wout = int(((W + 2*padding[2] - dialation[2]*(ksize[2]-1)-1)/stride[2]) + 1)
-        return [Cout,Dout,Hout,Wout]
+        return [Cout,D,Hout,Wout]
 
     def calc_out_dims_trans(self,inshape,Cout,dialation=1,ksize=1,stride=1,padding=1,output_padding=0):
         if type(ksize) == int:
@@ -183,10 +179,10 @@ class VAE3dmp(BaseVAE):
             output_padding = (output_padding,output_padding,output_padding)
 
         C,D,H,W = inshape
-        Dout = int((((D - 1)*stride[0] - 2*padding[0] + dialation[0]*(ksize[0]-1) + output_padding[0])) + 1)
+        # Dout = int((((D - 1)*stride[0] - 2*padding[0] + dialation[0]*(ksize[0]-1) + output_padding[0])) + 1)
         Hout = int((((H - 1)*stride[1] - 2*padding[1] + dialation[1]*(ksize[1]-1) + output_padding[1])) + 1)
         Wout = int((((W - 1)*stride[2] - 2*padding[2] + dialation[2]*(ksize[2]-1) + output_padding[2])) + 1)
-        return [Cout,Dout,Hout,Wout]
+        return [Cout,D,Hout,Wout]
 
     def encode(self, x: Tensor) -> List[Tensor]:
         """
@@ -195,15 +191,19 @@ class VAE3dmp(BaseVAE):
         :param input: (Tensor) Input tensor to encoder [N x C x D x H x W]
         :return: (Tensor) List of latent codes
         """
-        # loop over layers, have to collect pool_idx and output sizes if using max pooling to use
-        # in unpooling
-        pool_idx = []
-        target_output_size = []
-        for layer in self.encoder:
-            if isinstance(layer, nn.MaxPool3d):
-                target_output_size.append(x.size())
-                x, idx = layer(x)
-                pool_idx.append(idx)
+        for name, layer in self.encoder.named_children():
+            if isinstance(layer,ConvLSTM):
+                if x.shape[1] != self.depth_dim:
+                    x = x.permute(0,2,1,3,4)
+                else:
+                    pass
+                x, state = layer(x)
+                x = x[0].permute(0,2,1,3,4)
+            elif isinstance(layer,nn.MaxPool2d):
+                shape = x.shape
+                x = x.view(shape[0],shape[1]*shape[2],shape[3],shape[4])
+                x = layer(x)
+                x = x.view(shape[0],shape[1],shape[2],x.shape[-2],x.shape[-1])
             else:
                 x = layer(x)
 
@@ -214,9 +214,9 @@ class VAE3dmp(BaseVAE):
         mu = self.fc_mu(x)
         log_var = self.fc_var(x)
 
-        return [mu, log_var, pool_idx, target_output_size]
+        return [mu, log_var]
 
-    def decode(self, pool_idx, target_output_size, z: Tensor) -> Tensor:
+    def decode(self, z: Tensor) -> Tensor:
         """
         Maps the given latent codes
         onto the image space.
@@ -225,22 +225,32 @@ class VAE3dmp(BaseVAE):
         """
 
         result = self.decoder_input(z)
-        result = result.view(-1,self.encoder_shapes[-1][0],self.encoder_shapes[-1][1],self.encoder_shapes[-1][2],self.encoder_shapes[-1][3])
+
+        result = result.view(-1,self.encoder_shapes[-1][0],self.encoder_shapes[-1][1],self.encoder_shapes[-1][-2],self.encoder_shapes[-1][-1])
+        result = result.permute(0,2,1,3,4)
         for name, layer in self.decoder.named_children():
-            if isinstance(layer, nn.MaxUnpool3d):
-                idx = pool_idx.pop(-1)
-                outsize = target_output_size.pop(-1)
-                result = layer(result, idx, outsize)
+            if isinstance(layer,ConvLSTM):
+                if result.shape[1] != self.depth_dim:
+                    result = result.permute(0,2,1,3,4)
+                else:
+                    pass
+                result, _ = layer(result)
+                result = result[0].permute(0,2,1,3,4)
             else:
                 result = layer(result)
 
         for name, layer in self.final_layer.named_children():
-            if isinstance(layer, nn.MaxUnpool3d):
-                idx = pool_idx.pop(-1)
-                outsize = target_output_size.pop(-1)
-                result = layer(result, idx, outsize)
+            if isinstance(layer,ConvLSTM):
+                if result.shape[1] != self.depth_dim:
+                    result = result.permute(0,2,1,3,4)
+                else:
+                    pass
+                result, _ = layer(result)
+                result = result[0].permute(0,2,1,3,4)
             else:
                 result = layer(result)
+        if result.shape[1] != self.depth_dim:
+            result = result.permute(0,2,1,3,4)
         return result
 
     def reparameterize(self, mu: Tensor, logvar: Tensor) -> Tensor:
@@ -256,13 +266,12 @@ class VAE3dmp(BaseVAE):
         return eps * std + mu
 
     def forward(self, inputs: Tensor, **kwargs) -> List[Tensor]:
-        mu, log_var, pool_idx, target_output_size = self.encode(inputs)
+        mu, log_var = self.encode(inputs)
         z = self.reparameterize(mu, log_var)
-        return  [self.decode(pool_idx, target_output_size, z), inputs, mu, log_var]
+        return  [self.decode(z), inputs, mu, log_var]
 
     def grab_latents(self, inputs: Tensor, **kwargs) -> List[Tensor]:
-        mu, log_var, pool_idx, target_output_size = self.encode(inputs)
-        pool_idx2, target_output_size2 = pool_idx.copy(), target_output_size.copy()
+        mu, log_var = self.encode(inputs)
         z = self.reparameterize(mu, log_var)
         return  [z, self.generate_from_latents(z), inputs.detach(), mu.detach(), log_var.detach()]
 
@@ -305,13 +314,7 @@ class VAE3dmp(BaseVAE):
 
         z = z.to(current_device)
 
-        result = self.decoder_input(z)
-        result = result.view(-1, self.hidden_dims[-1], self.depth_dim//(2**len(self.hidden_dims)), 4, 4)
-        for name, layer in self.decoder.named_children():
-                result = layer(result)
-
-        for name, layer in self.final_layer.named_children():
-                result = layer(result)
+        result = self.decode(z)
         return result
 
     def generate_from_latents(self, z: Tensor, **kwargs) -> Tensor:
@@ -320,13 +323,7 @@ class VAE3dmp(BaseVAE):
         :param x: (Tensor) [B x latent_dim]
         :return: (Tensor) [B x C x H x W]
         """
-        result = self.decoder_input(z)
-        result = result.view(-1,self.encoder_shapes[-1][0],self.encoder_shapes[-1][1],self.encoder_shapes[-1][2],self.encoder_shapes[-1][3])
-        for name, layer in self.decoder.named_children():
-            result = layer(result)
-
-        for name, layer in self.final_layer.named_children():
-                result = layer(result)
+        result = self.decode(z)
         return result
 
     def generate(self, x: Tensor, **kwargs) -> Tensor:
