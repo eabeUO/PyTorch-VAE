@@ -87,7 +87,7 @@ class WC3dDataset(Dataset):
                 img = self.transform(img)
             sample.append(img)
         sample = torch.cat(sample,dim=0).unsqueeze(0) # To put into B x C x D x H x W format
-        return 
+        return sample
         
 class WCRNNDataset(Dataset):
     def __init__(self, csv_file, N_fm, root_dir, transform=None):

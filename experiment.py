@@ -134,8 +134,7 @@ class VAEXperiment(pl.LightningModule):
                 #                                                  T_max=self.params['scheduler_gamma'],
                 #                                                  )
                 scheduler = optim.lr_scheduler.ExponentialLR(optims[0],
-                                                             gamma = self.params['scheduler_gamma'],
-                                                             interval='epoch')
+                                                             gamma = self.params['scheduler_gamma'])
                 scheds.append(scheduler)
 
                 # Check if another scheduler is required for the second optimizer

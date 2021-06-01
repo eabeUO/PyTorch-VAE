@@ -1,5 +1,5 @@
 model_params:
-  name: 'VAE3dmp'
+  name: "VAE3dmp"
   in_channels: 1
   latent_dim: 128
   depth_dim: 16
@@ -8,7 +8,7 @@ model_params:
   kernels: [5,5,5,5]
   mpkernels: [2,2,2,2]
   input_size: [1,16,64,64]
-  hidden_dims: [64, 128, 256, 512]
+  hidden_dims: [32, 64, 128, 256]
 
 exp_params:
   dataset: WorldCam3D
@@ -18,7 +18,7 @@ exp_params:
   imgH_size: 64
   imgW_size: 64
   batch_size: 512 # 
-  LR: 0.001
+  LR: 0.00001
   weight_decay: 0.001
   scheduler_gamma: 1
   N_fm: 16
